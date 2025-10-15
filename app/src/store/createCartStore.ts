@@ -76,9 +76,6 @@ export const createCartStore = (
                   ? { ...item, quantity: item.quantity + quantity }
                   : item
               );
-              // Si el item existe, delegamos a updateItemQuantity
-              get().updateItemQuantity(id, existingItem.quantity + quantity);
-              return state; // No modificamos el estado aquí directamente
             } else {
               // Para una UI optimista, creamos un item temporal. La sincronización lo reemplazará con datos reales.
               const newItem: CartItem = {
@@ -93,101 +90,58 @@ export const createCartStore = (
 
             return {
               cart: {
-                ...state.cart!,
-                id: state.cart?.id || "",
-                subtotal: state.cart?.subtotal || 0,
+                ...(state.cart || { id: '', subtotal: 0 }),
                 items: newItems,
               },
             };
           });
-          const items =
-            get().cart?.items.map((i: CartItem) => ({
-              id: i.product.id,
-              quantity: i.quantity,
-            })) || [];
-          get().syncCart(items);
 
-          // Solo llamamos a syncCart si es un item nuevo
           const itemsToSync = get().cart?.items.map((i) => ({ id: i.product.id, quantity: i.quantity })) || [];
           get().syncCart(itemsToSync);
         },
 
-        removeItem: async (productId) => {
-          const cartItem = get().cart?.items.find(item => item.product.id === productId);
-          if (!cartItem) return;
-
+        removeItem: (productId) => {
           // UI Optimista
-          set(state => ({ cart: { ...state.cart!, items: state.cart!.items.filter(item => item.product.id !== productId) } }));
-
-          const result = await updateCartItemUseCase.execute({
-            itemIndex: cartItem.index,
-            quantity: 0,
-            id: cartItem.product.id,
-            uniqueId: cartItem.id, // 💡 CORRECCIÓN: Pasando el uniqueId
-            seller: '1' // Asumimos seller '1'
+          set(state => {
+            if (!state.cart) return state; // Si no hay carrito, no hacemos nada.
+            const newItems = state.cart.items.filter(item => item.product.id !== productId);
+            const newSubtotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            return { cart: { ...state.cart, items: newItems, subtotal: newSubtotal } };
           });
-          result.fold(
-            get()._revertToLastKnownState,
-            () => {
-              // La operación fue exitosa. La UI ya está actualizada.
-              // Solo actualizamos el "punto de guardado" para futuras reversiones.
-              console.log('Remove item successful. Optimistic state confirmed.');
-              set(state => ({ lastKnownGoodState: { cart: state.cart } }));
-            }
-          );
+
+          // Disparamos la sincronización
+          const itemsToSync = get().cart?.items.map((i) => ({ id: i.product.id, quantity: i.quantity })) || [];
+          get().syncCart(itemsToSync);
         },
 
-        updateItemQuantity: async (productId, quantity) => {
-          const cartItem = get().cart?.items.find(item => item.product.id === productId);
-          if (!cartItem) return;
-
+        updateItemQuantity: (productId, quantity) => {
           // Si la cantidad es 0 o menos, usamos la lógica de `removeItem`.
           if (quantity <= 0) {
             get().removeItem(productId);
             return;
           }
 
-          // UI Optimista
-          set(state => ({
-            cart: {
-              ...state.cart!,
-              items: state.cart!.items.map(item =>
-                item.product.id === productId ? { ...item, quantity } : item
-              ),
-            },
-          }));
-
-          const result = await updateCartItemUseCase.execute({
-            itemIndex: cartItem.index,
-            id: cartItem.product.id, // ID del SKU
-            uniqueId: cartItem.id, // 💡 CORRECCIÓN: Pasando el uniqueId (ID de la línea del carrito)
-            seller: '1',
-            quantity: quantity,
+          // UI Optimista: Actualiza la cantidad localmente
+          set(state => {
+            if (!state.cart) return state; // Si no hay carrito, no hacemos nada.
+            const newItems = state.cart.items.map(item =>
+              item.product.id === productId ? { ...item, quantity } : item
+            );
+            const newSubtotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
+            return { cart: { ...state.cart, items: newItems, subtotal: newSubtotal } };
           });
 
-          result.fold(
-            get()._revertToLastKnownState,
-            (response) => {
-              console.log('Update quantity successful. Server confirmed quantity:', response.quantity);
-              // Sincronizamos la cantidad con la respuesta del servidor para máxima consistencia.
-              set(state => {
-                const updatedItems = state.cart!.items.map(item =>
-                  item.product.id === productId ? { ...item, quantity: response.quantity } : item
-                );
-                const newCartState = {
-                  ...state.cart!,
-                  items: updatedItems,
-                };
-                return { cart: newCartState, lastKnownGoodState: { cart: newCartState } };
-              });
-            }
-          );
+          // Disparamos la sincronización
+          const itemsToSync = get().cart?.items.map((i) => ({ id: i.product.id, quantity: i.quantity })) || [];
+          get().syncCart(itemsToSync);
         },
 
         clearCart: async () => {
           // UI Optimista: vacía el carrito en la UI inmediatamente
           set(state => ({
-            cart: { ...state.cart!, items: [] },
+            cart: state.cart
+              ? { ...state.cart, items: [], subtotal: 0 }
+              : { id: '', items: [], subtotal: 0 },
           }));
 
           // Llama al caso de uso para vaciar el carrito en el backend
@@ -195,17 +149,9 @@ export const createCartStore = (
 
           result.fold(
             get()._revertToLastKnownState, // Si falla, revierte al estado anterior
-            (partialCartUpdate: Cart) => { // Actualización parcial
-              // Si tiene éxito, actualiza el estado con la respuesta del servidor
-              // 💡 FUSIÓN DE ESTADO
-              set(state => {
-                const newCartState: Cart = {
-                  ...state.cart!,
-                  items: partialCartUpdate.items,
-                  subtotal: partialCartUpdate.subtotal,
-                };
-                return { cart: newCartState, lastKnownGoodState: { cart: newCartState } };
-              });
+            (updatedCart: Cart) => {
+              console.log('Cart cleared successfully. Server confirmed state.');
+              set({ cart: updatedCart, lastKnownGoodState: { cart: updatedCart } });
             }
           );
         },
@@ -239,7 +185,6 @@ export const createCartStore = (
             result.fold(
               (error) => {
                 console.error("Sync failed:", error);
-                _revertToLastKnownState();
               },
               (updatedCart: Cart) => {
                 // El caso de uso ahora devuelve la entidad Cart

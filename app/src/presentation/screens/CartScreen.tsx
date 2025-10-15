@@ -1,4 +1,3 @@
-import React from 'react';
 import { ActivityIndicator, FlatList, Image, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useStorefront } from '../../context/storefront.context';
 import { CartItem } from '../../data/providers/vtex/vtex.types/vtex.cart.types';
@@ -60,7 +59,7 @@ const CartScreen = () => {
   // Nota: En tu contexto el hook se llama `useOrderFormStore`, pero usa `createCartStore`.
   const { cart, isSyncing, syncError, clearCart } = useStorefront().useCartStore();
 
-  if (!cart || cart.items.length === 0) {
+  if (!cart || cart.items?.length === 0) {
     return (
       <View style={styles.centered}>
         <Text style={styles.emptyText}>Tu carrito está vacío.</Text>
@@ -92,7 +91,7 @@ const CartScreen = () => {
       <View style={styles.footer}>
         <View style={styles.subtotalContainer}>
           <Text style={styles.subtotalLabel}>Subtotal</Text>
-          <Text style={styles.subtotalValue}>${cart.subtotal.toFixed(2)}</Text>
+          <Text style={styles.subtotalValue}>${cart?.subtotal?.toFixed(2)}</Text>
         </View>
         <TouchableOpacity style={styles.checkoutButton}>
           <Text style={styles.checkoutButtonText}>Ir a Pagar</Text>

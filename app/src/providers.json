@@ -1,0 +1,13 @@
+{
+  "provider": "Vtex",
+  "credentials": {
+    "Shopify": {
+      "storeUrl": "https://camiloitg.myshopify.com/api/2024-04/graphql.json",
+      "accessToken": "67aa21a79db85c072f321fc65bf551d0"
+    },
+    "Vtex": {
+      "storeUrl": "https://master--hanesar.myvtex.com",
+      "workspace": "master"
+    }
+  }
+}

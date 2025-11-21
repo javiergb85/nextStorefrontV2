@@ -52,7 +52,8 @@ export const createFetcher = (config: FetcherConfig, loginStoreApi?: LoginStoreA
       if (config.provider === "Shopify") {
         allHeaders.set("Authorization", `Bearer ${authToken}`);
       } else if (config.provider === "Vtex") {
-        allHeaders.set("VtexIdclientAutCookie", authToken);
+        // VTEX expects the token in the Cookie header for many APIs (like OMS)
+        cookies.push(`VtexIdclientAutCookie=${authToken}`);
       } else {
         allHeaders.set("Authorization", `Bearer ${authToken}`);
       }

@@ -53,7 +53,8 @@ const LoginScreen = () => {
 
     //await login("prueba1@yopmail.com", "contraseña123");
 
-    await login("javier.guevarabarrios@balloon-group.com", "Jagb27027055..");
+  await login("paula.montesrodriguez@balloon-group.com", "Prueba123");
+   // await login("javier.guevarabarrios@balloon-group.com", "Jagb27027055..");
     // await login('test@test.com', 'password123');
   };
 

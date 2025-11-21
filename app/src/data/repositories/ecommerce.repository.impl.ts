@@ -73,4 +73,21 @@ export class EcommerceRepositoryImpl implements EcommerceRepository {
       return left(new Error(`Failed to place order: ${error.message}`));
     }
   }
+  async listOrders(email: string): Promise<Either<Error, any>> {
+    try {
+      const orders = await this.provider.listOrders(email);
+      return right(orders);
+    } catch (error: any) {
+      return left(new Error(`Failed to list orders: ${error.message}`));
+    }
+  }
+
+  async getOrder(orderId: string): Promise<Either<Error, any>> {
+    try {
+      const order = await this.provider.getOrder(orderId);
+      return right(order);
+    } catch (error: any) {
+      return left(new Error(`Failed to get order: ${error.message}`));
+    }
+  }
 }

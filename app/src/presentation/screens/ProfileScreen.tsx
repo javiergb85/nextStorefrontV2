@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -6,6 +7,7 @@ import { useStorefront } from '../../context/storefront.context';
 import { useTheme } from '../../context/theme.context';
 
 const ProfileScreen = () => {
+    const router = useRouter();
     const { userProfile, logout } = useStorefront().useLoginStore();
     const { theme, toggleTheme } = useTheme();
     const insets = useSafeAreaInsets();
@@ -55,7 +57,10 @@ const ProfileScreen = () => {
 
             {/* Menu Items */}
             <View style={styles.menuContainer}>
-                <TouchableOpacity style={[styles.menuItem, { borderBottomColor: borderColor }]}>
+                <TouchableOpacity 
+                    style={[styles.menuItem, { borderBottomColor: borderColor }]}
+                    onPress={() => router.push('/(tabs)/orders')}
+                >
                     <Text style={[styles.menuItemText, { color: textColor }]}>MY ORDERS</Text>
                     <Ionicons name="chevron-forward" size={20} color={secondaryText} />
                 </TouchableOpacity>

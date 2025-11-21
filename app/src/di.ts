@@ -3,6 +3,8 @@ import {
     ProviderConfig,
 } from "./data/providers/provider.factory";
 import { EcommerceRepositoryImpl } from "./data/repositories/ecommerce.repository.impl";
+import { GetOrderDetailUseCase } from "./domain/use-cases/get-order-detail.use-case";
+import { GetOrdersUseCase } from "./domain/use-cases/get-orders.use-case";
 import { GetProductDetailUseCase } from "./domain/use-cases/get-product-detail";
 import { GetProductsUseCase } from "./domain/use-cases/get-products.use-case";
 import { GetUserProfileUseCase } from "./domain/use-cases/get-user-profile.use-case";
@@ -40,6 +42,8 @@ export function initializeServices(config: any, loginStoreApi: LoginStoreApi) {
   const removeCartItemUseCase = new RemoveCartItemUseCase(ecommerceRepository);
   const removeAllCartItemsUseCase = new RemoveAllCartItemsUseCase(ecommerceRepository);
   const getUserProfileUseCase = new GetUserProfileUseCase(ecommerceProvider);
+  const getOrdersUseCase = new GetOrdersUseCase(ecommerceRepository);
+  const getOrderDetailUseCase = new GetOrderDetailUseCase(ecommerceRepository);
 
   // Devolvemos todas las dependencias en un solo objeto.
   return {
@@ -51,6 +55,8 @@ export function initializeServices(config: any, loginStoreApi: LoginStoreApi) {
     removeCartItemUseCase,
     removeAllCartItemsUseCase,
     getUserProfileUseCase,
+    getOrdersUseCase,
+    getOrderDetailUseCase,
     provider: ecommerceProvider, // 💡 Exponemos el proveedor para casos especiales (como categorías)
   };
 }

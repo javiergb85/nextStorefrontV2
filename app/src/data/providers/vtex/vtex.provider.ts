@@ -16,6 +16,7 @@ import {
 } from "./vtex.mapper";
 import { Cart } from "./vtex.types/vtex.cart.types";
 import { VtexOrderForm } from "./vtex.types/vtex.orderform.types";
+import { OrderDetail, OrderListResponse } from "./vtex.types/vtex.orders.types";
 import { VTEXProductClass } from "./vtex.types/vtex.product.types";
 import { ProductFetchInput, Products as VtexProducts } from "./vtex.types/vtex.products.types";
 
@@ -277,9 +278,6 @@ export class VtexProvider implements AuthRepository {
   }
 
   async addToCart(productId: string, quantity: number): Promise<any> {
-    // Este método podría ser llamado por un `syncCart` con un solo item,
-    // pero lo mantenemos por si se necesita una acción directa.
-    return this.syncCart([{ id: productId, quantity, seller: '1' }]);
   }
 
   async syncCart(items: { id: string; quantity: number; seller: string; uniqueId?: string }[]): Promise<Cart> {
@@ -488,11 +486,13 @@ console.log("variables", variables)
         // URL: /api/dataentities/CL/search?_fields=firstName,lastName,email,phone,document&_where=email={email}
         // Esto suele estar bloqueado para acceso público anónimo, pero con cookie de usuario logueado podría funcionar.
         
-        const searchUrl = `/api/dataentities/CL/search?_fields=firstName,lastName,email,phone,document&_where=email=${email}`;
+        const searchUrl = `${this.storeUrl}/api/dataentities/CL/search?_fields=firstName,lastName,email,phone,document&_where=email=${email}`;
         const response = await this.apiCall(searchUrl, {
             method: 'GET',
             headers: {
-                'REST-Range': 'resources=0-1'
+                'REST-Range': 'resources=0-1',
+                'X-VTEX-API-AppKey': 'vtexappkey-hanesar-GSTCPT',
+                'X-VTEX-API-AppToken': 'NMPSJOZUDGSFJYUJWAIQELCWCWYLVVNBDVAJZRUXNTQQMJHOHNGHSDYYNDAEIHYCJTZCMJQJNZSHITLRYCLHKPCYYCWFFFIRKRTKWAKGVOBTSKJQYZLSWQTUPKWUKLHG'
             }
         });
         console.log("response getUserProfile", response)
@@ -500,7 +500,8 @@ console.log("variables", variables)
             return response[0];
         }
         
-        return null;
+        console.warn("UserProfile not found in OrderForm or MasterData. Returning basic profile with email.");
+        return { email };
 
     } catch (error) {
         console.error("Error fetching user profile:", error);
@@ -525,4 +526,56 @@ console.log("variables", variables)
     }
   }
 
+  async listOrders(email: string): Promise<OrderListResponse> {
+    try {
+      // /api/oms/user/orders/?page=1&includeProfileLastPurchases=true
+      const url = `${this.storeUrl}/api/oms/user/orders/?page=1&includeProfileLastPurchases=true`;
+      
+      // const authToken = await getAuthToken();
+      // const orderFormId = await getVtexOrderFormId();
+      
+      // const cookieHeader = `VtexIdclientAutCookie=${authToken}; checkout.vtex.com=__ofid=${orderFormId}`;
+      
+      // console.log("listOrders calling with axios:", url, cookieHeader);
+
+      // const response = await axios.get(url, {
+      //   headers: {
+      //     'Accept': 'application/json',
+      //     'Content-Type': 'application/json',
+      //     'VtexIdclientAutCookie': 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjEwQzNFMDhDNkE4RkFFRkQ2MUNEQzBFRjVEQjgxOTZCNDU0QzBEMDIiLCJ0eXAiOiJqd3QifQ.eyJzdWIiOiJwYXVsYS5tb250ZXNyb2RyaWd1ZXpAYmFsbG9vbi1ncm91cC5jb20iLCJhY2NvdW50IjoiaGFuZXNhciIsImF1ZGllbmNlIjoid2Vic3RvcmUiLCJzZXNzIjoiZTY2MWFmM2MtNDNkMy00YjQxLWI4YWItMTYzODUyOWZjZjhlIiwiZXhwIjoxNzYzODUxNjY4LCJ0eXBlIjoidXNlciIsInVzZXJJZCI6ImE1NzIwOGIwLThjMWItNGMwNy1iNGU2LWYyMjMwNDFiNjBjNyIsImlhdCI6MTc2Mzc2NTI2OCwiaXNSZXByZXNlbnRhdGl2ZSI6ZmFsc2UsImlzcyI6InRva2VuLWVtaXR0ZXIiLCJqdGkiOiI5ZDkwNWFhNS0xNmMxLTQ0M2MtODY0ZC0yOWZhNTkzNmMxOTkifQ.RVw31Jcyu7ANyiAmecPOeT7EpEAUt5PQy-vHq34bL9Mc0As_EHEDOhMS2m15vcFTpcV_p5fq7rwp6c8QSxLq4Q'
+      //   //  'Cookie': cookieHeader
+      //   }
+      // });
+
+      const response = await this.apiCall(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
+      return response;
+      
+    } catch (error) {
+      console.error("Error fetching orders:", error);
+      throw new Error("Failed to fetch orders");
+    }
+  }
+  
+  async getOrder(orderId: string): Promise<OrderDetail> {
+    try {
+      const url = `${this.storeUrl}/api/oms/user/orders/${orderId}`;
+      const response = await this.apiCall(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
+      return response;
+    } catch (error) {
+      console.error("Error fetching order detail:", error);
+      throw new Error("Failed to fetch order detail");
+    }
+  }
 }

@@ -17,4 +17,6 @@ export interface EcommerceRepository {
   updateCartItems(items: { itemIndex: number; quantity: number; id: string; uniqueId: string; seller: string; }[]): Promise<Either<Error, any>>;
   removeAllCartItems(): Promise<Either<Error, any>>;
   placeOrder(): Promise<Either<Error, boolean>>; 
+  listOrders(email: string): Promise<Either<Error, any>>;
+  getOrder(orderId: string): Promise<Either<Error, any>>;
 }

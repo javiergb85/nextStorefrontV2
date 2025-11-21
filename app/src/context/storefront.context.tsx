@@ -4,6 +4,7 @@ import * as vtexSearchUtils from '../shared/utils/vtex-search.utils';
 import { createCartStore } from "../store/createCartStore";
 import { createCategoryStore } from "../store/createCategoryStore";
 import { createLoginStore } from "../store/createLoginStore";
+import { createOrderStore } from "../store/createOrderStore";
 import { createProductDetailStore } from "../store/createProductDetailStore";
 import { createProductStore } from "../store/createProductStore";
 // 💡 Interfaz necesaria para la API del store (debe estar disponible globalmente)
@@ -47,6 +48,7 @@ interface StorefrontHooks {
   useProductDetailStore: ReturnType<typeof createProductDetailStore>;
   useCartStore: ReturnType<typeof createCartStore>; 
   useCategoryStore: ReturnType<typeof createCategoryStore>;
+  useOrderStore: ReturnType<typeof createOrderStore>;
   utils: {
     vtexSearch: typeof vtexSearchUtils;
     // Aquí puedes añadir otras utilidades generales
@@ -110,6 +112,7 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
         services.removeAllCartItemsUseCase
       ),
       useCategoryStore: createCategoryStore(services.provider),
+      useOrderStore: createOrderStore(services.getOrdersUseCase, services.getOrderDetailUseCase),
         utils: {
         vtexSearch: vtexSearchUtils,
       },

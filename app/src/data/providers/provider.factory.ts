@@ -19,6 +19,8 @@ export interface Provider extends AuthRepository {
   updateCartItems(items: { itemIndex: number; quantity: number; id: string; uniqueId: string; seller: string; }[]): Promise<{ success: boolean; quantity: number; }>;
   removeAllCartItems(): Promise<Cart>;
   getUserProfile(email: string): Promise<any>;
+  listOrders(email: string): Promise<any>;
+  getOrder(orderId: string): Promise<any>;
 }
 
 // Define el tipo de la configuración

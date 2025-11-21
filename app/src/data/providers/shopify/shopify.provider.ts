@@ -172,4 +172,13 @@ export class ShopifyProvider implements AuthRepository {
       console.log("removeAllCartItems implementation Shopify")
       return null;
   }
+  async listOrders(email: string): Promise<any> {
+    console.warn("listOrders not implemented for Shopify");
+    return null;
+  }
+
+  async getOrder(orderId: string): Promise<any> {
+    console.warn("getOrder not implemented for Shopify");
+    return null;
+  }
 }

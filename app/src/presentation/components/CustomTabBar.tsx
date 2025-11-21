@@ -77,6 +77,12 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
             }
         ]}>
             {state.routes.map((route, index) => {
+                // Filter out routes that shouldn't be in the tab bar
+                // Although _layout.tsx handles href: null, this is an extra safety layer
+                // and ensures order if we wanted to enforce it.
+                const allowedRoutes = ['index', 'categories', 'cart', 'profile'];
+                if (!allowedRoutes.includes(route.name)) return null;
+
                 const { options } = descriptors[route.key];
                 const label =
                     options.tabBarLabel !== undefined

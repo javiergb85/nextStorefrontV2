@@ -5,14 +5,14 @@ import { getVtexOrderFormId, saveVtexAuthCookies, saveVtexOrderFormId } from "@/
 import { Product as DomainProduct } from "../../../domain/entities/product";
 import { createFetcher } from "../../http/fetcher";
 import {
-    PRODUCT_DETAIL_QUERY,
-    PRODUCT_SEARCH_QUERY,
-    UPDATE_ITEMS_MUTATION,
+  PRODUCT_DETAIL_QUERY,
+  PRODUCT_SEARCH_QUERY,
+  UPDATE_ITEMS_MUTATION,
 } from "../queries/queriesVtex";
 import {
-    mapVtexOrderFormToCart,
-    mapVtexProductDetailToDomain,
-    mapVtexProductToDomain,
+  mapVtexOrderFormToCart,
+  mapVtexProductDetailToDomain,
+  mapVtexProductToDomain,
 } from "./vtex.mapper";
 import { Cart } from "./vtex.types/vtex.cart.types";
 import { VtexOrderForm } from "./vtex.types/vtex.orderform.types";
@@ -469,8 +469,12 @@ console.log("variables", variables)
     
     // Vamos a intentar obtenerlo del orderForm primero, que es lo más seguro en storefront.
     try {
+        console.log("getUserProfile called for:", email);
         const orderForm = await this.getOrderForm();
+        console.log("orderForm.clientProfileData:", orderForm.clientProfileData);
+        
         if (orderForm.clientProfileData && orderForm.clientProfileData.email === email) {
+            console.log("Returning profile from OrderForm");
             return {
                 firstName: orderForm.clientProfileData.firstName,
                 lastName: orderForm.clientProfileData.lastName,
@@ -491,7 +495,7 @@ console.log("variables", variables)
                 'REST-Range': 'resources=0-1'
             }
         });
-        
+        console.log("response getUserProfile", response)
         if (Array.isArray(response) && response.length > 0) {
             return response[0];
         }
@@ -501,6 +505,23 @@ console.log("variables", variables)
     } catch (error) {
         console.error("Error fetching user profile:", error);
         throw error;
+    }
+  }
+
+  async fetchCategories(depth: number = 3): Promise<any[]> {
+    try {
+      const url = `${this.storeUrl}/api/catalog_system/pub/category/tree/${depth}`;
+      const response = await this.apiCall(url, {
+        method: 'GET',
+        headers: {
+          'Accept': 'application/json',
+          'Content-Type': 'application/json',
+        }
+      });
+      return response;
+    } catch (error) {
+      console.error("Error fetching categories:", error);
+      throw new Error("Failed to fetch categories");
     }
   }
 

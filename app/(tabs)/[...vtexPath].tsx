@@ -3,11 +3,11 @@
 import { useLocalSearchParams } from 'expo-router';
 import React, { useState } from 'react';
 // Importamos el componente visual (ProductListScreen)
-import ProductListScreen from './src/presentation/screens/ProductListScreen';
+import ProductListScreen from '../src/presentation/screens/ProductListScreen';
 
 // Importamos el StorefrontProvider para obtener los utils (si no está ya en tu archivo principal)
 // Aunque ProductListScreen ya usa useStorefront(), es buena práctica de tipado.
-import { useStorefront } from './src/context/storefront.context';
+import { useStorefront } from '../src/context/storefront.context';
 
 
 /**
@@ -76,6 +76,7 @@ export default function SearchPage() {
       // 💡 3. Usamos el estado local de paginación
       from: pagination.from,
       to: pagination.to,
+      selectedFacets: getSelectedFacets(vtexInput),
     };
     // 💡 IMPORTANTE: 'pagination' es una dependencia. El useMemo se recalculará cuando cambie.
   }, [params, pathSegments, getSearchPath, getMap, getSelectedFacets, getQuery, pagination]); 

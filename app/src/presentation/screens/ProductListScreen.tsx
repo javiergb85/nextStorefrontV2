@@ -3,14 +3,14 @@
 import { Link } from "expo-router"; // 👈 Importa Link de expo-router
 import React, { useEffect, useMemo } from "react";
 import {
-  ActivityIndicator,
-  Dimensions,
-  FlatList,
-  Image,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    ActivityIndicator,
+    Dimensions,
+    FlatList,
+    Image,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Product as DomainProduct } from "../../domain/entities/product";
@@ -19,6 +19,7 @@ import SearchInput from "../components/SearchInput";
 import { Ionicons } from "@expo/vector-icons";
 import { useStorefront } from "../../context/storefront.context";
 import { useTheme } from "../../context/theme.context";
+import { formatPrice } from '../../shared/utils/formatters';
 
 const { width } = Dimensions.get("window");
 const spacing = 16;
@@ -108,7 +109,7 @@ const ProductCard = ({ product, themeStyles, isDark }: { product: DomainProduct,
             <Text style={themeStyles.productName} numberOfLines={1}>
                 {product.name}
             </Text>
-            <Text style={themeStyles.productPrice}>${product.price.toFixed(2)}</Text>
+            <Text style={themeStyles.productPrice}>{formatPrice(product.price)}</Text>
           </View>
 
           <View style={{ marginTop: 12 }}>

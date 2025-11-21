@@ -94,6 +94,10 @@ const LayoutContent = () => {
                 name="[...vtexPath]" 
                 options={{ headerShown: false }} 
               />
+              <Stack.Screen 
+                name="login" 
+                options={{ headerShown: false }} 
+              />
               <Stack.Screen name="+not-found" />
             </Stack>
           </AuthGuard>

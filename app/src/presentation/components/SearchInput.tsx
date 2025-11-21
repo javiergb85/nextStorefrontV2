@@ -45,16 +45,11 @@ const SearchInput = () => {
   const handleSearch = (term: string) => {
     setIsOverlayVisible(false);
     
-    // Hardcoded params as requested
-    const pathSegments = ["hombre", "boxers", "azul", "liso"];
-    const queryParams = {
-        priceRange: "8936 TO 13333",
-        term: "", // Keeping term empty as requested in the snippet
-    };
+    if (!term.trim()) return;
 
     router.push({
         pathname: "/[...vtexPath]",
-        params: { vtexPath: pathSegments, ...queryParams },
+        params: { term: term, vtexPath: ['search'] },
     });
   };
 

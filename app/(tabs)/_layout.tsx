@@ -15,6 +15,19 @@ export default function TabLayout() {
       <Tabs.Screen name="categories" />
       <Tabs.Screen name="cart" />
       <Tabs.Screen name="profile" />
+      <Tabs.Screen 
+        name="[...vtexPath]" 
+        options={{ 
+          href: null,
+          headerShown: false 
+        }} 
+      />
+      <Tabs.Screen 
+        name="explore" 
+        options={{ 
+          href: null,
+        }} 
+      />
     </Tabs>
   );
 }

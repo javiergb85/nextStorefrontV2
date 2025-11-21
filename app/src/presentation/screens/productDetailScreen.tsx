@@ -24,12 +24,52 @@ interface ProductDetailScreenProps {
 
 const { width } = Dimensions.get('window');
 
+// Reusable Quantity Selector (Same as CartScreen/PLP for consistency)
+const QuantitySelector = ({
+  quantity,
+  onDecrease,
+  onIncrease,
+  isDark,
+}: {
+  quantity: number;
+  onDecrease: () => void;
+  onIncrease: () => void;
+  isDark: boolean;
+}) => (
+  <View style={styles.quantitySelectorContainer}>
+    <TouchableOpacity
+      onPress={onDecrease}
+      style={[
+        styles.quantityButton,
+        { borderColor: isDark ? '#333' : '#E5E5E5' },
+      ]}
+    >
+      <Ionicons name="remove" size={20} color={isDark ? '#FFF' : '#000'} />
+    </TouchableOpacity>
+    <Text style={[styles.quantityText, { color: isDark ? '#FFF' : '#000' }]}>
+      {quantity}
+    </Text>
+    <TouchableOpacity
+      onPress={onIncrease}
+      style={[
+        styles.quantityButton,
+        {
+          backgroundColor: isDark ? '#FFF' : '#000',
+          borderColor: isDark ? '#FFF' : '#000',
+        },
+      ]}
+    >
+      <Ionicons name="add" size={20} color={isDark ? '#000' : '#FFF'} />
+    </TouchableOpacity>
+  </View>
+);
+
 const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const { useProductDetailStore, useCartStore } = useStorefront();
   const { product, isLoading, error, fetchProductDetail } = useProductDetailStore();
-  const { addItem } = useCartStore();
+  const { addItem, cart, updateItemQuantity, removeItem } = useCartStore();
   const { width: windowWidth } = useWindowDimensions();
   const { theme } = useTheme();
   const isDark = theme === 'dark';
@@ -47,10 +87,28 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) 
     }
   }, [productId, fetchProductDetail]);
 
+  // Find if product is in cart
+  const cartItem = product ? cart?.items?.find(item => item.product.id === product.id) : undefined;
+
   const handleAddToCart = () => {
     if (product) {
       addItem(product.id, 1);
-      // Optional: Show a toast or feedback
+    }
+  };
+
+  const handleIncrease = () => {
+    if (product && cartItem) {
+      updateItemQuantity(product.id, cartItem.quantity + 1);
+    }
+  };
+
+  const handleDecrease = () => {
+    if (product && cartItem) {
+      if (cartItem.quantity > 1) {
+        updateItemQuantity(product.id, cartItem.quantity - 1);
+      } else {
+        removeItem(product.id);
+      }
     }
   };
 
@@ -132,14 +190,26 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) 
 
         {/* Bottom Action Bar */}
         <Animated.View entering={FadeInUp.delay(500).duration(600)} style={[styles.bottomBar, { backgroundColor: bgColor, paddingBottom: insets.bottom + 20 }]}>
-            <TouchableOpacity 
-                style={[styles.addToCartButton, { backgroundColor: buttonBg }]} 
-                onPress={handleAddToCart}
-                activeOpacity={0.9}
-            >
-                <Text style={[styles.addToCartText, { color: buttonText }]}>ADD TO BAG</Text>
-                <Ionicons name="bag-handle-outline" size={20} color={buttonText} style={{ marginLeft: 10 }} />
-            </TouchableOpacity>
+            {cartItem ? (
+                <View style={styles.quantityContainer}>
+                    <Text style={[styles.inBagText, { color: secondaryText }]}>IN BAG:</Text>
+                    <QuantitySelector 
+                        quantity={cartItem.quantity}
+                        onIncrease={handleIncrease}
+                        onDecrease={handleDecrease}
+                        isDark={isDark}
+                    />
+                </View>
+            ) : (
+                <TouchableOpacity 
+                    style={[styles.addToCartButton, { backgroundColor: buttonBg }]} 
+                    onPress={handleAddToCart}
+                    activeOpacity={0.9}
+                >
+                    <Text style={[styles.addToCartText, { color: buttonText }]}>ADD TO BAG</Text>
+                    <Ionicons name="bag-handle-outline" size={20} color={buttonText} style={{ marginLeft: 10 }} />
+                </TouchableOpacity>
+            )}
         </Animated.View>
     </View>
   );
@@ -238,6 +308,34 @@ const styles = StyleSheet.create({
     fontWeight: '800',
     letterSpacing: 2,
     textTransform: 'uppercase',
+  },
+  quantityContainer: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      height: 56,
+  },
+  inBagText: {
+      fontSize: 14,
+      fontWeight: '600',
+      letterSpacing: 1,
+  },
+  quantitySelectorContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  quantityButton: {
+    width: 40,
+    height: 40,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderRadius: 0, // Sharp
+  },
+  quantityText: {
+    fontSize: 18,
+    fontWeight: '600',
+    marginHorizontal: 20,
   },
 });
 

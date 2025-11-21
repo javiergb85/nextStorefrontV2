@@ -1,10 +1,10 @@
 import { create } from 'zustand';
 import { LoginUseCase } from '../domain/use-cases/login.use-case';
 import {
-  clearAllAuthTokens,
-  getAuthToken,
-  getVtexCredentials,
-  saveVtexCredentials,
+    clearAllAuthTokens,
+    getAuthToken,
+    getVtexCredentials,
+    saveVtexCredentials,
 } from '../shared/utils/auth-storage.util';
 
 import { GetUserProfileUseCase } from '../domain/use-cases/get-user-profile.use-case';
@@ -58,6 +58,9 @@ export const createLoginStore = (
             await saveVtexCredentials(email, password);
         }
         
+        // 💡 Fetch user profile immediately
+        await get().fetchProfile(email);
+
         set({ accessToken: token, isLoading: false });
       } catch (e: any) {
         set({ error: e.message, isLoading: false, accessToken: null });

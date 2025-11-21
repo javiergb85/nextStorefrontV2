@@ -1,6 +1,6 @@
 import {
-  getEcommerceProvider,
-  ProviderConfig,
+    getEcommerceProvider,
+    ProviderConfig,
 } from "./data/providers/provider.factory";
 import { EcommerceRepositoryImpl } from "./data/repositories/ecommerce.repository.impl";
 import { GetProductDetailUseCase } from "./domain/use-cases/get-product-detail";
@@ -51,5 +51,6 @@ export function initializeServices(config: any, loginStoreApi: LoginStoreApi) {
     removeCartItemUseCase,
     removeAllCartItemsUseCase,
     getUserProfileUseCase,
+    provider: ecommerceProvider, // 💡 Exponemos el proveedor para casos especiales (como categorías)
   };
 }

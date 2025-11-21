@@ -2,13 +2,13 @@ import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
 import {
-  Dimensions,
-  Image,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
+    Dimensions,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -36,10 +36,10 @@ const HomeScreen = () => {
     ];
 
     const featuredProducts = [
-        { id: '1', name: 'OVERSIZED BLAZER', price: '$129', image: 'https://images.unsplash.com/photo-1551028919-ac7675ef0c62?w=800&q=80' },
-        { id: '2', name: 'LEATHER BOOTS', price: '$189', image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&q=80' },
-        { id: '3', name: 'WOOL COAT', price: '$299', image: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=800&q=80' },
-        { id: '4', name: 'SILK SCARF', price: '$49', image: 'https://images.unsplash.com/photo-1584030373081-f37b7bb4fa8e?w=800&q=80' },
+        { id: '1', name: 'OVERSIZED BLAZER', price: 129, image: 'https://images.unsplash.com/photo-1551028919-ac7675ef0c62?w=800&q=80' },
+        { id: '2', name: 'LEATHER BOOTS', price: 189, image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&q=80' },
+        { id: '3', name: 'WOOL COAT', price: 299, image: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=800&q=80' },
+        { id: '4', name: 'SILK SCARF', price: 49, image: 'https://images.unsplash.com/photo-1584030373081-f37b7bb4fa8e?w=800&q=80' },
     ];
 
     return (
@@ -52,13 +52,26 @@ const HomeScreen = () => {
                 <View style={styles.header}>
                     <View style={styles.headerTop}>
                         <Text style={[styles.logo, { color: textColor }]}>STORE</Text>
-                        <TouchableOpacity onPress={toggleTheme}>
-                            <Ionicons 
-                                name={isDark ? 'moon' : 'sunny'} 
-                                size={24} 
-                                color={textColor} 
-                            />
-                        </TouchableOpacity>
+                        <View style={{ flexDirection: 'row', gap: 15 }}>
+                            <TouchableOpacity onPress={toggleTheme}>
+                                <Ionicons 
+                                    name={isDark ? 'moon' : 'sunny'} 
+                                    size={24} 
+                                    color={textColor} 
+                                />
+                            </TouchableOpacity>
+                            <TouchableOpacity onPress={() => {
+                                // Simple logout logic for now: clear token and go to login
+                                // In a real app, use the logout use case
+                                router.replace('/login');
+                            }}>
+                                <Ionicons 
+                                    name="log-out-outline" 
+                                    size={24} 
+                                    color={textColor} 
+                                />
+                            </TouchableOpacity>
+                        </View>
                     </View>
                     <SearchInput />
                 </View>

@@ -2,6 +2,7 @@ import React, { createContext, ReactNode, useContext, useMemo } from "react";
 import { initializeServices } from "../di";
 import * as vtexSearchUtils from '../shared/utils/vtex-search.utils';
 import { createCartStore } from "../store/createCartStore";
+import { createCategoryStore } from "../store/createCategoryStore";
 import { createLoginStore } from "../store/createLoginStore";
 import { createProductDetailStore } from "../store/createProductDetailStore";
 import { createProductStore } from "../store/createProductStore";
@@ -35,6 +36,9 @@ interface Services {
   getUserProfileUseCase: ReturnType<
     typeof initializeServices
   >["getUserProfileUseCase"];
+  // We need access to the provider instance for categories, which is a bit of a hack but fits the current pattern
+  // Ideally we would have a getCategoriesUseCase
+  provider: any; 
 }
 
 interface StorefrontHooks {
@@ -42,6 +46,7 @@ interface StorefrontHooks {
   useLoginStore: ReturnType<typeof createLoginStore>;
   useProductDetailStore: ReturnType<typeof createProductDetailStore>;
   useCartStore: ReturnType<typeof createCartStore>; 
+  useCategoryStore: ReturnType<typeof createCategoryStore>;
   utils: {
     vtexSearch: typeof vtexSearchUtils;
     // Aquí puedes añadir otras utilidades generales
@@ -104,6 +109,7 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
         services.removeCartItemUseCase,
         services.removeAllCartItemsUseCase
       ),
+      useCategoryStore: createCategoryStore(services.provider),
         utils: {
         vtexSearch: vtexSearchUtils,
       },

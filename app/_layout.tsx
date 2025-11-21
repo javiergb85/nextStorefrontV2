@@ -8,6 +8,8 @@ import 'react-native-reanimated';
 
 import { useColorScheme } from '@/hooks/useColorScheme';
 import { StorefrontProvider, useStorefront } from './src/context/storefront.context';
+import { ThemeProvider as CustomThemeProvider, useTheme } from './src/context/theme.context';
+import { ThemeTransitionOverlay } from './src/presentation/components/ThemeTransitionOverlay';
 import config from "./src/providers.json";
  
 // Lógica de autenticación centralizada
@@ -55,29 +57,52 @@ export default function RootLayout() {
  
   return (
     <StorefrontProvider config={config}>
-    <ThemeProvider value={colorScheme === 'dark' ? DarkTheme : DefaultTheme}>
-      <AuthGuard>
-        <Stack>
-          <Stack.Screen 
-            name="index" 
-            options={{ headerShown: false }} 
-          />
-          
-          <Stack.Screen 
-            name="product/[slug]" // 👈 CAMBIO: Apunta a la nueva ruta
-            options={{ headerShown: false }} // Puedes añadir un título aquí si quieres, ej: options={{ title: 'Producto' }}
-          />
-          <Stack.Screen 
-            name="[...vtexPath]" // El nombre coincide con el directorio 'app/search/'
-            options={{ headerShown: false }} // Ajusta las opciones según necesites
-          />
-          <Stack.Screen name="login" options={{ headerShown: false }} /> 
-          <Stack.Screen name="cart" options={{ title: 'Mi Carrito' }} /> 
-          <Stack.Screen name="+not-found" />
-        </Stack>
-      </AuthGuard>
-      <StatusBar style="auto" />
-    </ThemeProvider>
+      <CustomThemeProvider>
+        <LayoutContent />
+      </CustomThemeProvider>
     </StorefrontProvider>
   );
 }
+
+const LayoutContent = () => {
+  const { theme, setViewRef } = useTheme();
+  
+  return (
+    <ThemeProvider value={theme === 'dark' ? DarkTheme : DefaultTheme}>
+      <View style={{ flex: 1 }}>
+        {/* The View we capture (The App Content) */}
+        <View 
+            style={{ flex: 1 }} 
+            ref={(ref) => {
+                // console.log("View Ref set:", ref ? "Valid" : "Null");
+                setViewRef(ref);
+            }} 
+            collapsable={false}
+        >
+          <AuthGuard>
+            <Stack>
+              <Stack.Screen 
+                name="(tabs)" 
+                options={{ headerShown: false }} 
+              />
+              
+              <Stack.Screen 
+                name="product/[slug]" 
+                options={{ headerShown: false }} 
+              />
+              <Stack.Screen 
+                name="[...vtexPath]" 
+                options={{ headerShown: false }} 
+              />
+              <Stack.Screen name="+not-found" />
+            </Stack>
+          </AuthGuard>
+        </View>
+        
+        {/* The Overlay (Sits on top, not captured) */}
+        <ThemeTransitionOverlay />
+      </View>
+      <StatusBar style={theme === 'dark' ? 'light' : 'dark'} />
+    </ThemeProvider>
+  );
+};

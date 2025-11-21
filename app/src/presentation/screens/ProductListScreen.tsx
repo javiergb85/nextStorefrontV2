@@ -1,7 +1,7 @@
 // src/presentation/screens/ProductListScreen.tsx
 
 import { Link } from "expo-router"; // 👈 Importa Link de expo-router
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -14,11 +14,15 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { Product as DomainProduct } from "../../domain/entities/product";
+import SearchInput from "../components/SearchInput";
 //import { useProductStore } from '../../store/product.store';
+import { Ionicons } from "@expo/vector-icons";
 import { useStorefront } from "../../context/storefront.context";
+import { useTheme } from "../../context/theme.context";
 
 const { width } = Dimensions.get("window");
-const itemWidth = (width - 48) / 2;
+const spacing = 16;
+const itemWidth = (width - spacing * 3) / 2; // 2 columns with spacing
 
 interface ProductListScreenProps {
   searchInput: any;
@@ -29,24 +33,28 @@ const QuantitySelector = ({
   quantity,
   onDecrease,
   onIncrease,
+  themeStyles,
+  isDark
 }: {
   quantity: number;
   onDecrease: () => void;
   onIncrease: () => void;
+  themeStyles: any;
+  isDark: boolean;
 }) => (
   <View style={styles.quantitySelectorContainer}>
-    <TouchableOpacity onPress={onDecrease} style={styles.quantityButton}>
-      <Text style={styles.quantityButtonText}>-</Text>
+    <TouchableOpacity onPress={onDecrease} style={[themeStyles.quantityButton, { borderWidth: 1, borderColor: isDark ? '#333' : '#E5E5E5' }]}>
+      <Ionicons name="remove" size={16} color={isDark ? '#FFF' : '#000'} />
     </TouchableOpacity>
-    <Text style={styles.quantityText}>{quantity}</Text>
-    <TouchableOpacity onPress={onIncrease} style={styles.quantityButton}>
-      <Text style={styles.quantityButtonText}>+</Text>
+    <Text style={themeStyles.quantityText}>{quantity}</Text>
+    <TouchableOpacity onPress={onIncrease} style={[themeStyles.quantityButton, { backgroundColor: isDark ? '#FFF' : '#000' }]}>
+      <Ionicons name="add" size={16} color={isDark ? '#000' : '#FFF'} />
     </TouchableOpacity>
   </View>
 );
 
 // Pasa navigation a ProductCard para que pueda navegar
-const ProductCard = ({ product }: { product: DomainProduct }) => {
+const ProductCard = ({ product, themeStyles, isDark }: { product: DomainProduct, themeStyles: any, isDark: boolean }) => {
   // 1. Obtenemos el objeto 'cart' completo en lugar de 'items'
   const { cart, addItem, updateItemQuantity, removeItem } =
     useStorefront().useCartStore();
@@ -55,8 +63,6 @@ const ProductCard = ({ product }: { product: DomainProduct }) => {
   const cartItem = cart?.items?.find(
     (item) => item.product.id === product.id
   );
-
-
 
   const handleIncrease = () => {
     if (cartItem) {
@@ -83,36 +89,46 @@ const ProductCard = ({ product }: { product: DomainProduct }) => {
       href={{
         pathname: "/product/[slug]", // 👈 CAMBIO: Usa la nueva ruta con prefijo
         params: {
-          slug: encodeURIComponent(product?.slug || "") || product?.slug,
+          slug: encodeURIComponent(product?.slug || "") || "",
         },
       }}
       asChild
     >
-      <TouchableOpacity style={styles.card}>
-        <Image
-          source={{ uri: product.images[0] }}
-          style={styles.productImage}
-          resizeMode="contain"
-        />
-        <View style={styles.textContainer}>
-          <Text style={styles.productName} numberOfLines={2}>
-            {product.name}
-          </Text>
-          <Text style={styles.productPrice}>${product.price.toFixed(2)}</Text>
-          {cartItem ? (
-            <QuantitySelector
-              quantity={cartItem.quantity}
-              onIncrease={handleIncrease}
-              onDecrease={handleDecrease}
+      <TouchableOpacity style={themeStyles.card}>
+        <View style={[styles.imageContainer, { backgroundColor: isDark ? '#111' : '#F5F5F5' }]}>
+            <Image
+            source={{ uri: product.images[0] }}
+            style={styles.productImage}
+            resizeMode="contain"
             />
-          ) : (
-            <TouchableOpacity
-              style={styles.addToCartButton}
-              onPress={handleAddToCart}
-            >
-              <Text style={styles.addToCartButtonText}>Añadir al carrito</Text>
-            </TouchableOpacity>
-          )}
+        </View>
+        
+        <View style={styles.textContainer}>
+          <View>
+            <Text style={themeStyles.productName} numberOfLines={1}>
+                {product.name}
+            </Text>
+            <Text style={themeStyles.productPrice}>${product.price.toFixed(2)}</Text>
+          </View>
+
+          <View style={{ marginTop: 12 }}>
+            {cartItem ? (
+                <QuantitySelector
+                quantity={cartItem.quantity}
+                onIncrease={handleIncrease}
+                onDecrease={handleDecrease}
+                themeStyles={themeStyles}
+                isDark={isDark}
+                />
+            ) : (
+                <TouchableOpacity
+                style={themeStyles.addToCartButton}
+                onPress={handleAddToCart}
+                >
+                <Text style={themeStyles.addToCartButtonText}>ADD TO BAG</Text>
+                </TouchableOpacity>
+            )}
+          </View>
         </View>
       </TouchableOpacity>
     </Link>
@@ -127,20 +143,106 @@ const ProductListScreen: React.FC<ProductListScreenProps> = ({
 
   // Ya no se necesitan 'params', 'pathSegments', 'utils' ni 'useMemo' aquí
   const { useProductStore, useLoginStore } = useStorefront();
+  const { theme } = useTheme();
 
   const { products, isLoading, error, fetchProducts, isFetchingMore } =
     useProductStore();
   const { logout } = useLoginStore();
-console.log("products", JSON.stringify(products))
+
+  // Dynamic Styles based on theme
+  const themeStyles = useMemo(() => {
+      const isDark = theme === 'dark';
+      return StyleSheet.create({
+          container: {
+              flex: 1,
+              backgroundColor: isDark ? '#000000' : '#FFFFFF',
+          },
+          headerContainer: {
+            flexDirection: "row",
+            justifyContent: "space-between",
+            alignItems: "center",
+            paddingHorizontal: 16,
+            paddingBottom: 20,
+            backgroundColor: isDark ? '#000000' : '#FFFFFF',
+            // No border for minimal look
+          },
+          headerTitle: {
+            fontSize: 32, // Larger, bolder title
+            fontWeight: "900",
+            letterSpacing: -1,
+            color: isDark ? '#FFFFFF' : '#000000',
+            textTransform: 'uppercase',
+          },
+          card: {
+            // No background color for card, transparent
+            marginBottom: 24,
+            width: itemWidth,
+            // No shadow/elevation
+          },
+          productName: {
+            fontSize: 13,
+            fontWeight: "500",
+            color: isDark ? '#AAAAAA' : '#666666',
+            marginBottom: 4,
+            textTransform: 'uppercase',
+            letterSpacing: 0.5,
+          },
+          productPrice: {
+            fontSize: 15,
+            fontWeight: "700",
+            color: isDark ? '#FFFFFF' : '#000000',
+          },
+          addToCartButton: {
+            backgroundColor: isDark ? '#FFFFFF' : '#000000',
+            paddingVertical: 10,
+            borderRadius: 0, // Sharp corners for modern look
+            alignItems: "center",
+            justifyContent: 'center',
+          },
+          addToCartButtonText: {
+            color: isDark ? '#000000' : '#FFFFFF',
+            fontWeight: "700",
+            fontSize: 11,
+            letterSpacing: 1,
+          },
+          quantityText: {
+            fontSize: 14,
+            fontWeight: "600",
+            marginHorizontal: 12,
+            color: isDark ? '#FFFFFF' : '#000000',
+          },
+          quantityButton: {
+            padding: 6,
+            borderRadius: 0, // Sharp
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'transparent', // Default transparent
+          },
+      });
+  }, [theme]);
+
+//console.log("products", JSON.stringify(products))
   // Componente de encabezado personalizado
-  const CustomHeader = () => (
-    <View style={[styles.headerContainer, { paddingTop: insets.top }]}>
-      <Text style={styles.headerTitle}>Catálogo</Text>
-      <TouchableOpacity onPress={logout} style={styles.logoutButton}>
-        <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
-      </TouchableOpacity>
-    </View>
-  );
+  const CustomHeader = () => {
+    const { theme, toggleTheme } = useTheme();
+    return (
+      <View style={[themeStyles.headerContainer, { paddingTop: insets.top + 10 }]}>
+        <Text style={themeStyles.headerTitle}>SHOP</Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 16 }}>
+            <TouchableOpacity onPress={toggleTheme}>
+                <Ionicons 
+                    name={theme === 'dark' ? 'moon' : 'sunny'} 
+                    size={20} 
+                    color={theme === 'dark' ? '#FFF' : '#000'} 
+                />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={logout}>
+                <Ionicons name="log-out-outline" size={20} color={theme === 'dark' ? '#FFF' : '#000'} />
+            </TouchableOpacity>
+        </View>
+      </View>
+    );
+  };
 
   const handleLoadMore = () => {
     // Solo llama a loadNextPage si no estás cargando actualmente
@@ -155,7 +257,7 @@ console.log("products", JSON.stringify(products))
     if (!isFetchingMore) return null;
     return (
       <View style={{ paddingVertical: 20 }}>
-        <ActivityIndicator size="small" color="#007BFF" />
+        <ActivityIndicator size="small" color={theme === 'dark' ? '#FFF' : '#000'} />
       </View>
     );
   };
@@ -166,19 +268,16 @@ console.log("products", JSON.stringify(products))
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Cargando productos...</Text>
+      <View style={[styles.centered, { backgroundColor: theme === 'dark' ? '#000' : '#FFF' }]}>
+        <ActivityIndicator size="large" color={theme === 'dark' ? '#FFF' : '#000'} />
       </View>
     );
   }
 
   if (error) {
     return (
-      <View style={styles.centered}>
+      <View style={[styles.centered, { backgroundColor: theme === 'dark' ? '#000' : '#FFF' }]}>
         <Text style={styles.errorText}>
-          ❌ ¡Ocurrió un error!
-          {"\n"}
           {error}
         </Text>
       </View>
@@ -188,22 +287,26 @@ console.log("products", JSON.stringify(products))
   return (
     <View
       style={[
-        styles.safeAreaContainer,
-        { paddingTop: insets.top, paddingBottom: insets.bottom },
+        themeStyles.container,
+        { paddingTop: 0, paddingBottom: insets.bottom },
       ]}
     >
       <CustomHeader />
-      <View style={styles.container}>
+      <View style={{ paddingHorizontal: 16, paddingBottom: 20 }}>
+        <SearchInput />
+      </View>
+      <View style={themeStyles.container}>
         <FlatList
           data={products}
           keyExtractor={(item) => item.id}
-          renderItem={({ item }) => <ProductCard product={item} />}
+          renderItem={({ item }) => <ProductCard product={item} themeStyles={themeStyles} isDark={theme === 'dark'} />}
           numColumns={2}
           columnWrapperStyle={styles.row}
           contentContainerStyle={styles.list}
           onEndReached={handleLoadMore}
           onEndReachedThreshold={0.5}
           ListFooterComponent={<FooterLoader />}
+          showsVerticalScrollIndicator={false}
         />
       </View>
     </View>
@@ -211,120 +314,44 @@ console.log("products", JSON.stringify(products))
 };
 
 const styles = StyleSheet.create({
-  safeAreaContainer: {
-    flex: 1,
-    backgroundColor: "#FAFAFA",
-    paddingHorizontal: 16,
-  },
-  container: {
-    flex: 1,
-    backgroundColor: "#FAFAFA",
-  },
+  // Static styles that don't change with theme
   centered: {
     flex: 1,
     justifyContent: "center",
     alignItems: "center",
   },
-  headerContainer: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingHorizontal: 16,
-    paddingBottom: 10,
-    backgroundColor: "#fff",
-    borderBottomWidth: 1,
-    borderBottomColor: "#eee",
-    // paddingTop: insets.top se maneja directamente en el componente
-  },
-  headerTitle: {
-    fontSize: 20,
-    fontWeight: "bold",
-    color: "#333",
-  },
-  logoutButton: {
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-    borderRadius: 5,
-    backgroundColor: "#dc3545", // Rojo
-  },
-  logoutButtonText: {
-    color: "white",
-    fontWeight: "600",
-    fontSize: 14,
-  },
   row: {
     justifyContent: "space-between",
+    paddingHorizontal: 16,
   },
-  card: {
-    backgroundColor: "#fff",
-    borderRadius: 8,
-    margin: 8,
-    overflow: "hidden",
-    width: itemWidth,
-    elevation: 3,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
+  imageContainer: {
+      width: '100%',
+      aspectRatio: 0.85, // Taller images
+      borderRadius: 4,
+      marginBottom: 12,
+      justifyContent: 'center',
+      alignItems: 'center',
+      overflow: 'hidden',
   },
   productImage: {
-    width: "100%",
-    height: 150,
+    width: "90%",
+    height: "90%",
   },
   textContainer: {
-    padding: 10,
-  },
-  productName: {
-    fontSize: 16,
-    fontWeight: "600",
-    color: "#333",
-    minHeight: 40,
-  },
-  productPrice: {
-    fontSize: 18,
-    fontWeight: "bold",
-    color: "#4CAF50",
-    marginTop: 5,
-  },
-  addToCartButton: {
-    backgroundColor: "#007BFF",
-    padding: 10,
-    borderRadius: 5,
-    marginTop: 10,
-    alignItems: "center",
-  },
-  addToCartButtonText: {
-    color: "#fff",
-    fontWeight: "bold",
+    paddingHorizontal: 0, // Align with image edges
   },
   quantitySelectorContainer: {
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "center",
-    marginTop: 10,
-  },
-  quantityButton: {
-    backgroundColor: "#ddd",
-    padding: 8,
-    borderRadius: 5,
-    marginHorizontal: 5,
-  },
-  quantityButtonText: {
-    fontSize: 16,
-    fontWeight: "bold",
-    color: "#555",
-  },
-  quantityText: {
-    fontSize: 18,
-    fontWeight: "bold",
-    marginHorizontal: 10,
+    justifyContent: "space-between",
   },
   errorText: {
     color: "red",
     textAlign: "center",
   },
   list: {
-    paddingVertical: 16,
+    paddingVertical: 0,
+    paddingBottom: 40,
   },
 });
 

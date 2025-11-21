@@ -32,6 +32,9 @@ interface Services {
   removeAllCartItemsUseCase: ReturnType<
     typeof initializeServices
   >["removeAllCartItemsUseCase"];
+  getUserProfileUseCase: ReturnType<
+    typeof initializeServices
+  >["getUserProfileUseCase"];
 }
 
 interface StorefrontHooks {
@@ -43,7 +46,9 @@ interface StorefrontHooks {
     vtexSearch: typeof vtexSearchUtils;
     // Aquí puedes añadir otras utilidades generales
     // formatters: typeof formatters;
+    // formatters: typeof formatters;
   };
+  services: Services;
 }
 
 const StorefrontContext = createContext<StorefrontHooks | undefined>(undefined);
@@ -68,6 +73,7 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
   const useLoginStore = useMemo(
     () => createLoginStore(
         tempServices.loginUseCase, 
+        tempServices.getUserProfileUseCase,
         activeProviderName
     ),
     [tempServices, activeProviderName]
@@ -101,6 +107,7 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
         utils: {
         vtexSearch: vtexSearchUtils,
       },
+      services: services,
     }),
     [services, useLoginStore]
   );

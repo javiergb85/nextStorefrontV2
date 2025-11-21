@@ -1,19 +1,46 @@
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React, { useEffect } from 'react';
-import { ActivityIndicator, Image, ScrollView, StyleSheet, Text, TouchableOpacity, View, useWindowDimensions } from 'react-native';
+import {
+    ActivityIndicator,
+    Dimensions,
+    Image,
+    ScrollView,
+    StyleSheet,
+    Text,
+    TouchableOpacity,
+    View,
+    useWindowDimensions
+} from 'react-native';
+import Animated, { FadeInDown, FadeInUp } from 'react-native-reanimated';
 import HTML from 'react-native-render-html';
-//import { useProductDetailStore } from '../../store/productDetail.store';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStorefront } from '../../context/storefront.context';
+import { useTheme } from '../../context/theme.context';
 
 interface ProductDetailScreenProps {
   productId: string;
 }
 
+const { width } = Dimensions.get('window');
+
 const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) => {
-const { useProductDetailStore, useCartStore } = useStorefront();
+  const router = useRouter();
+  const insets = useSafeAreaInsets();
+  const { useProductDetailStore, useCartStore } = useStorefront();
   const { product, isLoading, error, fetchProductDetail } = useProductDetailStore();
   const { addItem } = useCartStore();
-  const { width } = useWindowDimensions(); // 👈 Call the hook here
-console.log("Product DETAIL")
+  const { width: windowWidth } = useWindowDimensions();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  // Colors
+  const bgColor = isDark ? '#000000' : '#FFFFFF';
+  const textColor = isDark ? '#FFFFFF' : '#000000';
+  const secondaryText = isDark ? '#AAAAAA' : '#666666';
+  const buttonBg = isDark ? '#FFFFFF' : '#000000';
+  const buttonText = isDark ? '#000000' : '#FFFFFF';
+
   useEffect(() => {
     if (productId) {
       fetchProductDetail(productId);
@@ -23,111 +50,194 @@ console.log("Product DETAIL")
   const handleAddToCart = () => {
     if (product) {
       addItem(product.id, 1);
-      alert('Product added to cart!');
+      // Optional: Show a toast or feedback
     }
   };
 
   if (isLoading) {
     return (
-      <View style={styles.centered}>
-        <ActivityIndicator size="large" color="#0000ff" />
-        <Text>Loading product details...</Text>
+      <View style={[styles.centered, { backgroundColor: bgColor }]}>
+        <ActivityIndicator size="large" color={textColor} />
       </View>
     );
   }
 
-  if (error) {
+  if (error || !product) {
     return (
-      <View style={styles.centered}>
-        <Text style={styles.errorText}>Error: {error}</Text>
-      </View>
-    );
-  }
-
-  if (!product) {
-    return (
-      <View style={styles.centered}>
-        <Text>Product not found.</Text>
+      <View style={[styles.centered, { backgroundColor: bgColor }]}>
+        <Text style={[styles.errorText, { color: textColor }]}>
+            {error || 'Product not found'}
+        </Text>
+        <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
+            <Text style={{ color: secondaryText, textDecorationLine: 'underline' }}>Go Back</Text>
+        </TouchableOpacity>
       </View>
     );
   }
 
   return (
-    <ScrollView contentContainerStyle={styles.container}>
-      <View style={styles.imageContainer}>
-        <Image
-          source={{ uri: product.images[0] }}
-          style={styles.productImage}
-          resizeMode="contain"
-        />
-      </View>
-      <View style={styles.detailsContainer}>
-        <Text style={styles.productName}>{product.name}</Text>
-        <Text style={styles.productPrice}>${product.price.toFixed(2)}</Text>
-        {product?.listPrice > product.price && (
-          <Text style={styles.listPrice}>List Price: ${product?.listPrice.toFixed(2)}</Text>
-        )}
-        {/* 👈 Pass contentWidth to the HTML component */}
-        <HTML source={{ html: product.description }} contentWidth={width} /> 
-        <TouchableOpacity style={styles.addToCartButton} onPress={handleAddToCart}>
-          <Text style={styles.addToCartButtonText}>Add to Cart</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+    <View style={[styles.container, { backgroundColor: bgColor }]}>
+        {/* Custom Header */}
+        <View style={[styles.header, { paddingTop: insets.top, backgroundColor: 'transparent' }]}>
+            <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
+                <Ionicons name="arrow-back" size={24} color={textColor} />
+            </TouchableOpacity>
+            <TouchableOpacity>
+                <Ionicons name="share-outline" size={24} color={textColor} />
+            </TouchableOpacity>
+        </View>
+
+        <ScrollView 
+            contentContainerStyle={{ paddingBottom: 100 }} 
+            showsVerticalScrollIndicator={false}
+        >
+            {/* Product Image */}
+            <Animated.View entering={FadeInDown.duration(600)} style={styles.imageContainer}>
+                <Image
+                    source={{ uri: product.images[0] }}
+                    style={styles.productImage}
+                    resizeMode="cover"
+                />
+            </Animated.View>
+
+            {/* Product Info */}
+            <View style={styles.infoContainer}>
+                <Animated.Text entering={FadeInDown.delay(100).duration(600)} style={[styles.brand, { color: secondaryText }]}>
+                    PREMIUM COLLECTION
+                </Animated.Text>
+                
+                <Animated.Text entering={FadeInDown.delay(200).duration(600)} style={[styles.name, { color: textColor }]}>
+                    {product.name}
+                </Animated.Text>
+
+                <Animated.Text entering={FadeInDown.delay(300).duration(600)} style={[styles.price, { color: textColor }]}>
+                    ${product.price.toFixed(2)}
+                </Animated.Text>
+
+                {/* Description */}
+                <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.descriptionContainer}>
+                    <Text style={[styles.sectionTitle, { color: textColor }]}>DESCRIPTION</Text>
+                    <HTML 
+                        source={{ html: product.description }} 
+                        contentWidth={windowWidth}
+                        baseStyle={{ color: secondaryText, fontSize: 14, lineHeight: 24 }}
+                        tagsStyles={{
+                            p: { marginBottom: 10 },
+                            strong: { color: textColor, fontWeight: 'bold' }
+                        }}
+                    />
+                </Animated.View>
+            </View>
+        </ScrollView>
+
+        {/* Bottom Action Bar */}
+        <Animated.View entering={FadeInUp.delay(500).duration(600)} style={[styles.bottomBar, { backgroundColor: bgColor, paddingBottom: insets.bottom + 20 }]}>
+            <TouchableOpacity 
+                style={[styles.addToCartButton, { backgroundColor: buttonBg }]} 
+                onPress={handleAddToCart}
+                activeOpacity={0.9}
+            >
+                <Text style={[styles.addToCartText, { color: buttonText }]}>ADD TO BAG</Text>
+                <Ionicons name="bag-handle-outline" size={20} color={buttonText} style={{ marginLeft: 10 }} />
+            </TouchableOpacity>
+        </Animated.View>
+    </View>
   );
 };
 
 const styles = StyleSheet.create({
   container: {
-    padding: 20,
-  },
-  imageContainer: {
     flex: 1,
-  },
-  productImage: {
-    width: '100%',
-    height: 300,
-    borderRadius: 8,
-  },
-  detailsContainer: {
-    flex: 1,
-    paddingLeft: 20,
-  },
-  productName: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
-  },
-  productPrice: {
-    fontSize: 22,
-    fontWeight: 'bold',
-    color: '#4CAF50',
-    marginTop: 10,
-  },
-  listPrice: {
-    fontSize: 16,
-    color: '#888',
-    textDecorationLine: 'line-through',
-  },
-  addToCartButton: {
-    backgroundColor: '#007bff',
-    padding: 15,
-    borderRadius: 4,
-    marginTop: 20,
-    alignItems: 'center',
-  },
-  addToCartButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
   },
   centered: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
   },
+  header: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    zIndex: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  backButton: {
+    padding: 8,
+    borderRadius: 20,
+    backgroundColor: 'rgba(255,255,255,0.1)', // Subtle backdrop if needed
+  },
+  imageContainer: {
+    width: width,
+    height: 500,
+    backgroundColor: '#f0f0f0',
+  },
+  productImage: {
+    width: '100%',
+    height: '100%',
+  },
+  infoContainer: {
+    padding: 24,
+  },
+  brand: {
+    fontSize: 12,
+    fontWeight: '700',
+    letterSpacing: 2,
+    marginBottom: 8,
+    textTransform: 'uppercase',
+  },
+  name: {
+    fontSize: 28,
+    fontWeight: '900',
+    letterSpacing: 0.5,
+    marginBottom: 10,
+    textTransform: 'uppercase',
+    lineHeight: 32,
+  },
+  price: {
+    fontSize: 20,
+    fontWeight: '400',
+    marginBottom: 30,
+  },
+  descriptionContainer: {
+    marginTop: 10,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 1,
+    marginBottom: 15,
+    textTransform: 'uppercase',
+  },
   errorText: {
-    color: 'red',
-    textAlign: 'center',
+    fontSize: 16,
+    marginBottom: 10,
+  },
+  bottomBar: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: 'rgba(0,0,0,0.05)',
+  },
+  addToCartButton: {
+    height: 56,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 0, // Sharp corners for premium feel
+  },
+  addToCartText: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
 });
 

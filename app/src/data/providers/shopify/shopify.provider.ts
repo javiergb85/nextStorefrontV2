@@ -159,7 +159,17 @@ export class ShopifyProvider implements AuthRepository {
     return true;
   }
 
+  async getUserProfile(email: string): Promise<any> {
+    console.warn("getUserProfile not implemented for Shopify");
+    return null;
+  }
+
   async updateCartItems(items: { itemIndex: number; quantity: number }[]): Promise<any> {
     console.log("UpdateCartItems implementation Shopify")
+  }
+
+  async removeAllCartItems(): Promise<any> {
+      console.log("removeAllCartItems implementation Shopify")
+      return null;
   }
 }

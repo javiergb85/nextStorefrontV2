@@ -1,42 +1,80 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useState } from 'react';
-import { StyleSheet, Text, TextInput, TouchableOpacity, View } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { StyleSheet, Text, TouchableWithoutFeedback, View } from 'react-native';
+import { useTheme } from '../../context/theme.context';
+import { SearchOverlay } from './SearchOverlay';
 
 const SearchInput = () => {
-  const [searchTerm, setSearchTerm] = useState('');
+  const [isOverlayVisible, setIsOverlayVisible] = useState(false);
   const router = useRouter();
+  const { theme } = useTheme();
 
-  const handleSearch = () => {
-    const trimmedTerm = searchTerm.trim();
-    // Solo redirigimos si el término tiene contenido y no es solo espacios.
-    if (trimmedTerm) {
-      // Redirigimos a la ruta de búsqueda. Expo Router lo resolverá a `[...vtexPath]`.
-      // Pasamos el término como un parámetro de consulta.
-      router.push({
-        pathname: '/[...vtexPath]', // Apuntamos directamente a la ruta de catch-all
-        params: { term: trimmedTerm },
+  const themeStyles = useMemo(() => {
+      const isDark = theme === 'dark';
+      return StyleSheet.create({
+          container: {
+            paddingHorizontal: 0, // Remove padding to align with other content if needed, or keep it
+            paddingVertical: 10,
+            width: '100%',
+          },
+          inputContainer: {
+            flexDirection: 'row',
+            alignItems: 'center',
+            backgroundColor: isDark ? '#1A1A1A' : '#F5F5F5', // Subtle contrast
+            borderRadius: 12, // Modern rounded corners
+            height: 50, // Slightly taller for better touch target
+            paddingHorizontal: 16,
+            // No border for cleaner look, or very subtle
+            borderWidth: 1,
+            borderColor: isDark ? '#333' : 'transparent', 
+          },
+          placeholderText: {
+              flex: 1,
+              color: isDark ? '#888' : '#999',
+              fontSize: 16,
+              fontWeight: '500',
+              marginLeft: 12,
+          },
+          iconColor: {
+              color: isDark ? '#FFF' : '#000',
+          },
       });
-    }
+  }, [theme]);
+
+  const handleSearch = (term: string) => {
+    setIsOverlayVisible(false);
+    
+    // Hardcoded params as requested
+    const pathSegments = ["hombre", "boxers", "azul", "liso"];
+    const queryParams = {
+        priceRange: "8936 TO 13333",
+        term: "", // Keeping term empty as requested in the snippet
+    };
+
+    router.push({
+        pathname: "/[...vtexPath]",
+        params: { vtexPath: pathSegments, ...queryParams },
+    });
   };
 
   return (
-    <View style={styles.container}>
-      <View style={styles.inputContainer}>
-        <TextInput
-          style={styles.input}
-          placeholder="Buscar productos..."
-          value={searchTerm}
-          onChangeText={setSearchTerm}
-          autoCapitalize="none"
-          autoCorrect={false}
-          returnKeyType="search"
-          onSubmitEditing={handleSearch} // Ejecuta la búsqueda al presionar "Enter"
-        />
-        <TouchableOpacity style={styles.searchButton} onPress={handleSearch}>
-          <Text style={styles.searchButtonText}>Buscar</Text>
-        </TouchableOpacity>
+    <>
+      <View style={themeStyles.container}>
+        <TouchableWithoutFeedback onPress={() => setIsOverlayVisible(true)}>
+            <View style={themeStyles.inputContainer}>
+                <Ionicons name="search-outline" size={20} color={themeStyles.iconColor.color} />
+                <Text style={themeStyles.placeholderText}>Search for products...</Text>
+            </View>
+        </TouchableWithoutFeedback>
       </View>
-    </View>
+      
+      <SearchOverlay 
+        isVisible={isOverlayVisible} 
+        onClose={() => setIsOverlayVisible(false)}
+        onSearch={handleSearch}
+      />
+    </>
   );
 };
 
@@ -46,34 +84,6 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     maxHeight:100,
     width: '100%',
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    backgroundColor: '#fff',
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: '#ccc',
-  },
-  input: {
-    flex: 1,
-    height: 44,
-    paddingHorizontal: 12,
-    fontSize: 16,
-  },
-  searchButton: {
-    paddingHorizontal: 16,
-    height: '100%',
-    justifyContent: 'center',
-    alignItems: 'center',
-    backgroundColor: '#007BFF',
-    borderTopRightRadius: 7, // Ajuste para que coincida con el borde del contenedor
-    borderBottomRightRadius: 7,
-  },
-  searchButtonText: {
-    color: 'white',
-    fontWeight: 'bold',
-    fontSize: 16,
   },
 });
 

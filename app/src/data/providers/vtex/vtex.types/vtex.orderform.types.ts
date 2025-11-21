@@ -16,7 +16,7 @@ export interface VtexOrderForm {
     selectableGifts:         any[];
     totalizers:              any[];
     shippingData:            null;
-    clientProfileData:       null;
+    clientProfileData:       ClientProfileData | null;
     paymentData:             PaymentData;
     marketingData:           null;
     sellers:                 any[];
@@ -77,4 +77,22 @@ export interface CurrencyFormatInfo {
     currencyGroupSeparator:   string;
     currencyGroupSize:        number;
     startsWithCurrencySymbol: boolean;
+}
+
+export interface ClientProfileData {
+    email: string;
+    firstName: string;
+    lastName: string;
+    document: string;
+    documentType: string;
+    phone: string;
+    corporateName: null;
+    tradeName: null;
+    corporateDocument: null;
+    stateInscription: null;
+    corporatePhone: null;
+    isCorporate: boolean;
+    profileCompleteOnLoading: boolean;
+    profileErrorOnLoading: boolean;
+    customerClass: null;
 }

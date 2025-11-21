@@ -7,26 +7,32 @@ import {
   saveVtexCredentials,
 } from '../shared/utils/auth-storage.util';
 
+import { GetUserProfileUseCase } from '../domain/use-cases/get-user-profile.use-case';
+
 // 💡 NEW TYPE: Define the possible provider names
 export type ProviderName = 'Shopify' | 'Vtex';
 
 interface LoginState {
   accessToken: string | null;
+  userProfile: any | null;
   isLoading: boolean;
   error: string | null;
   initializeAuth: () => Promise<void>;
   login: (email: string, password: string) => Promise<void>; 
   logout: () => void;
   revalidateAuth: () => Promise<boolean>; 
+  fetchProfile: (email: string) => Promise<void>;
 }
 
 // ✨ MODIFIED FACTORY: Accepts the active provider name
 export const createLoginStore = (
     loginUseCase: LoginUseCase,
+    getUserProfileUseCase: GetUserProfileUseCase,
     activeProviderName: ProviderName // 👈 Inject the active provider name
 ) => {
   return create<LoginState>((set, get) => ({ 
     accessToken: null,
+    userProfile: null,
     isLoading: true,
     error: null,
   
@@ -83,6 +89,9 @@ export const createLoginStore = (
             // Reutilizamos el caso de uso de login
             const newToken = await loginUseCase.execute(email, password);
             
+            // 💡 Fetch user profile after successful re-login
+            await get().fetchProfile(email);
+
             set({ accessToken: newToken, isLoading: false, error: null });
             console.log("VTEX re-login exitoso.");
             return true;
@@ -104,8 +113,17 @@ export const createLoginStore = (
     },
     
     logout:  async () => {
-      set({ accessToken: null, error: null });
+      set({ accessToken: null, error: null, userProfile: null });
       await clearAllAuthTokens(); 
     },
+
+    fetchProfile: async (email: string) => {
+        try {
+             const profile = await getUserProfileUseCase.execute(email);
+             set({ userProfile: profile });
+        } catch (e) {
+            console.error("Failed to fetch user profile", e);
+        }
+    }
   }));
 };

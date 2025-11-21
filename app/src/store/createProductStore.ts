@@ -3,11 +3,14 @@ import { ProductFetchInput } from "../data/providers/vtex/vtex.types/vtex.produc
 import { Product } from "../domain/entities/product";
 import { GetProductsUseCase } from "../domain/use-cases/get-products.use-case";
 
+import { queryClient } from "../shared/query-client";
+
 interface ProductState {
   products: Product[];
   isLoading: boolean;
   error: string | null;
   fetchProducts: (input?: ProductFetchInput | any) => Promise<void>;
+  prefetchProducts: (input?: ProductFetchInput | any) => Promise<void>;
   isFetchingMore: boolean;
 }
 
@@ -18,6 +21,19 @@ export const createProductStore = (getProductsUseCase: GetProductsUseCase) => {
     isLoading: false,
     isFetchingMore: false,
     error: null,
+
+    prefetchProducts: async (input: ProductFetchInput = {}) => {
+        await queryClient.prefetchQuery({
+            queryKey: ['products', input],
+            queryFn: async () => {
+                const result = await getProductsUseCase.execute(input);
+                return result.fold(
+                    (error) => { throw error; },
+                    (data) => data
+                );
+            },
+        });
+    },
 
     fetchProducts: async (input: ProductFetchInput = {}) => {
       // set({ isLoading: true, error: null });
@@ -30,19 +46,20 @@ export const createProductStore = (getProductsUseCase: GetProductsUseCase) => {
         set({ isFetchingMore: true, error: null });
       }
 
-      const result = await getProductsUseCase.execute(input);
-
-      result.fold(
-        (err) => {
-          // En caso de error, actualiza el estado de error
-          set({
-            products: [],
-            isFetchingMore: false,
-            isLoading: false,
-            error: `Failed to load products: ${err.message}`,
+      try {
+          // Use QueryClient to fetch (will use cache if available/fresh)
+          const data = await queryClient.fetchQuery({
+              queryKey: ['products', input],
+              queryFn: async () => {
+                  const result = await getProductsUseCase.execute(input);
+                  return result.fold(
+                      (error) => { throw error; },
+                      (data) => data
+                  );
+              },
+              staleTime: 1000 * 60 * 5, // 5 minutes
           });
-        },
-        (data) => {
+
           set((state) => {
             const newProducts = data;
 
@@ -75,8 +92,15 @@ export const createProductStore = (getProductsUseCase: GetProductsUseCase) => {
               error: null,
             };
           });
-        }
-      );
+
+      } catch (err: any) {
+          set({
+            products: [],
+            isFetchingMore: false,
+            isLoading: false,
+            error: `Failed to load products: ${err.message}`,
+          });
+      }
     },
   }));
 };

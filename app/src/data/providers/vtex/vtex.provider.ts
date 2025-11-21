@@ -5,14 +5,14 @@ import { getVtexOrderFormId, saveVtexAuthCookies, saveVtexOrderFormId } from "@/
 import { Product as DomainProduct } from "../../../domain/entities/product";
 import { createFetcher } from "../../http/fetcher";
 import {
-  PRODUCT_DETAIL_QUERY,
-  PRODUCT_SEARCH_QUERY,
-  UPDATE_ITEMS_MUTATION,
+    PRODUCT_DETAIL_QUERY,
+    PRODUCT_SEARCH_QUERY,
+    UPDATE_ITEMS_MUTATION,
 } from "../queries/queriesVtex";
 import {
-  mapVtexOrderFormToCart,
-  mapVtexProductDetailToDomain,
-  mapVtexProductToDomain,
+    mapVtexOrderFormToCart,
+    mapVtexProductDetailToDomain,
+    mapVtexProductToDomain,
 } from "./vtex.mapper";
 import { Cart } from "./vtex.types/vtex.cart.types";
 import { VtexOrderForm } from "./vtex.types/vtex.orderform.types";
@@ -131,8 +131,6 @@ export class VtexProvider implements AuthRepository {
             query: PRODUCT_DETAIL_QUERY,
             variables: { slug: parsedSlug },
           }),
-            prefetchKey: prefetchKey, 
-           isPrefetchAction: isPrefetchAction, 
         });
 
       const rawProduct = response.data.product;
@@ -402,7 +400,11 @@ console.log("variables", variables)
     console.log("itemsToUpdate>>>>>>>>>>>>>>>>>>>>>", itemsToUpdate)
     // 3. Ejecutar la mutación `updateCartItems` para vaciar el carrito.
     // Reutilizamos el método que ya usa la mutación GraphQL.
-    return this.updateCartItems(itemsToUpdate);
+    await this.updateCartItems(itemsToUpdate);
+
+    // 4. Obtener el estado actualizado del carrito
+    const updatedOrderForm = await this.getOrderForm();
+    return mapVtexOrderFormToCart(updatedOrderForm);
   }
 
   async placeOrder(): Promise<boolean> {
@@ -412,7 +414,7 @@ console.log("variables", variables)
 
 
 
-   public async getOrderForm(orderFormId?: string): Promise<VtexOrderForm> {
+  public async getOrderForm(orderFormId?: string): Promise<VtexOrderForm> {
     const ACCOUNT = this.accountName;
     if (!ACCOUNT) {
       throw new Error(
@@ -453,6 +455,52 @@ console.log("variables", variables)
       throw new Error(
         `Failed to fetch or create OrderForm: ${error instanceof Error ? error.message : 'Unknown error'}`
       );
+    }
+  }
+
+  async getUserProfile(email: string): Promise<any> {
+    // Usamos el endpoint de Profile System para obtener datos del usuario
+    // Nota: Este endpoint puede requerir cookies de autenticación (VtexIdclientAutCookie)
+    // que ya deberían estar manejadas por el fetcher o las cookies globales.
+    
+    // Opción 1: Buscar por email en Master Data (CL) - Requiere permisos públicos o token
+    // Opción 2: Usar endpoint de checkout para obtener perfil asociado al orderForm
+    // Opción 3: Profile System (pvt) - Requiere credenciales de app, no seguro para cliente.
+    
+    // Vamos a intentar obtenerlo del orderForm primero, que es lo más seguro en storefront.
+    try {
+        const orderForm = await this.getOrderForm();
+        if (orderForm.clientProfileData && orderForm.clientProfileData.email === email) {
+            return {
+                firstName: orderForm.clientProfileData.firstName,
+                lastName: orderForm.clientProfileData.lastName,
+                email: orderForm.clientProfileData.email,
+                phone: orderForm.clientProfileData.phone,
+                document: orderForm.clientProfileData.document,
+            };
+        }
+        
+        // Si no está en el orderForm (ej. login fresco sin checkout), intentamos Master Data
+        // URL: /api/dataentities/CL/search?_fields=firstName,lastName,email,phone,document&_where=email={email}
+        // Esto suele estar bloqueado para acceso público anónimo, pero con cookie de usuario logueado podría funcionar.
+        
+        const searchUrl = `/api/dataentities/CL/search?_fields=firstName,lastName,email,phone,document&_where=email=${email}`;
+        const response = await this.apiCall(searchUrl, {
+            method: 'GET',
+            headers: {
+                'REST-Range': 'resources=0-1'
+            }
+        });
+        
+        if (Array.isArray(response) && response.length > 0) {
+            return response[0];
+        }
+        
+        return null;
+
+    } catch (error) {
+        console.error("Error fetching user profile:", error);
+        throw error;
     }
   }
 

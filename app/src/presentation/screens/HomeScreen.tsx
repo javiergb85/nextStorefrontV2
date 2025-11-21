@@ -1,121 +1,262 @@
-// src/presentation/screens/HomeScreen.tsx (o index.tsx)
+import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
+import React from 'react';
+import {
+  Dimensions,
+  Image,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native';
+import Animated, { FadeInDown } from 'react-native-reanimated';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { useTheme } from '../../context/theme.context';
+import SearchInput from '../components/SearchInput';
 
-import { Link } from "expo-router";
-import React from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
-import SearchInput from "../components/SearchInput";
+const { width } = Dimensions.get('window');
+
+const AnimatedTouchable = Animated.createAnimatedComponent(TouchableOpacity);
 
 const HomeScreen = () => {
-  const insets = useSafeAreaInsets();
+    const router = useRouter();
+    const { theme, toggleTheme } = useTheme();
+    const insets = useSafeAreaInsets();
+    const isDark = theme === 'dark';
 
-  // 1. Define los segmentos de la ruta de categorías/marcas
-  const pathSegments = ["hombre", "boxers", "azul", "liso"];
+    const textColor = isDark ? '#FFFFFF' : '#000000';
+    const bgColor = isDark ? '#000000' : '#FFFFFF';
+    const secondaryText = isDark ? '#AAAAAA' : '#666666';
 
-  // 2. Define los parámetros de query (los "selectedFacets" y otros filtros)
-  // Estos irían después del '?' en la URL
-  const queryParams = {
-    // Ejemplo de un filtro de rango de precio
-    priceRange: "8936 TO 13333",
-    // Ejemplo de un término de búsqueda libre (fullText)
-    term: "",
-    // Otros filtros de facet si los necesitas (ej. color, talla, etc.)
-  };
+    const categories = [
+        { id: '1', name: 'NEW ARRIVALS', image: 'https://images.unsplash.com/photo-1523381210434-271e8be1f52b?w=800&q=80' },
+        { id: '2', name: 'ESSENTIALS', image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80' },
+        { id: '3', name: 'ACCESSORIES', image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&q=80' },
+    ];
 
-  return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <SearchInput />
-      <Text style={styles.title}>Simulación de Búsqueda VTEX</Text>
-      <Text style={styles.subtitle}>
-        Presiona el botón para navegar a la ruta de prueba.
-      </Text>
+    const featuredProducts = [
+        { id: '1', name: 'OVERSIZED BLAZER', price: '$129', image: 'https://images.unsplash.com/photo-1551028919-ac7675ef0c62?w=800&q=80' },
+        { id: '2', name: 'LEATHER BOOTS', price: '$189', image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&q=80' },
+        { id: '3', name: 'WOOL COAT', price: '$299', image: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=800&q=80' },
+        { id: '4', name: 'SILK SCARF', price: '$49', image: 'https://images.unsplash.com/photo-1584030373081-f37b7bb4fa8e?w=800&q=80' },
+    ];
 
-      {/*
-        El componente Link de Expo Router construye la navegación:
-        href: define la ruta base (path) y los queryParams (filtros).
-      */}
-      <Link
-        href={{
-          // Apuntamos al archivo de ruta que debe manejar esto
-          pathname: "/[...vtexPath]",
-          // Pasamos los segmentos y los query params
-          params: { vtexPath: pathSegments, ...queryParams },
-        }}
-        asChild // Usamos asChild para aplicar el TouchableOpacity
-      >
-        <TouchableOpacity style={styles.button}>
-          <Text style={styles.buttonText}>Ir a Productos (Ruta de Prueba)</Text>
-          <Text style={styles.buttonSubText}>
-            /{pathSegments.join("/")}?priceRange={queryParams.priceRange}
-          </Text>
-        </TouchableOpacity>
-      </Link>
+    return (
+        <View style={[styles.container, { backgroundColor: bgColor }]}>
+            <ScrollView 
+                contentContainerStyle={[styles.scrollContent, { paddingTop: insets.top }]} 
+                showsVerticalScrollIndicator={false}
+            >
+                {/* Header / Search */}
+                <View style={styles.header}>
+                    <View style={styles.headerTop}>
+                        <Text style={[styles.logo, { color: textColor }]}>STORE</Text>
+                        <TouchableOpacity onPress={toggleTheme}>
+                            <Ionicons 
+                                name={isDark ? 'moon' : 'sunny'} 
+                                size={24} 
+                                color={textColor} 
+                            />
+                        </TouchableOpacity>
+                    </View>
+                    <SearchInput />
+                </View>
 
-      <Link href="/cart" asChild>
-        <TouchableOpacity style={ styles.cartButton}>
-          
-          <Text style={styles.buttonSubTextCart}>
-            Ir a carrito
-          </Text>
-        </TouchableOpacity>
-      </Link>
-    </View>
-  );
+                {/* Hero Section */}
+                <Animated.View entering={FadeInDown.duration(800)} style={styles.heroContainer}>
+                    <Image 
+                        source={{ uri: 'https://images.unsplash.com/photo-1469334031218-e382a71b716b?w=1000&q=80' }} 
+                        style={styles.heroImage} 
+                    />
+                    <View style={styles.heroOverlay}>
+                        <Text style={styles.heroTitle}>SUMMER 2025</Text>
+                        <Text style={styles.heroSubtitle}>MINIMALIST COLLECTION</Text>
+                        <TouchableOpacity 
+                            style={[styles.heroButton, { backgroundColor: isDark ? '#FFF' : '#000' }]}
+                            onPress={() => router.push('/(tabs)/categories')}
+                        >
+                            <Text style={[styles.heroButtonText, { color: isDark ? '#000' : '#FFF' }]}>SHOP NOW</Text>
+                        </TouchableOpacity>
+                    </View>
+                </Animated.View>
+
+                {/* Categories */}
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { color: textColor }]}>SHOP BY CATEGORY</Text>
+                    <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.categoriesList}>
+                        {categories.map((cat, index) => (
+                            <AnimatedTouchable 
+                                key={cat.id}
+                                entering={FadeInDown.delay(200 + index * 100).duration(600)}
+                                style={styles.categoryCard}
+                                onPress={() => router.push('/(tabs)/categories')}
+                            >
+                                <Image source={{ uri: cat.image }} style={styles.categoryImage} />
+                                <View style={styles.categoryOverlay} />
+                                <Text style={styles.categoryName}>{cat.name}</Text>
+                            </AnimatedTouchable>
+                        ))}
+                    </ScrollView>
+                </View>
+
+                {/* Featured */}
+                <View style={styles.section}>
+                    <Text style={[styles.sectionTitle, { color: textColor }]}>TRENDING NOW</Text>
+                    <View style={styles.featuredGrid}>
+                        {featuredProducts.map((product, index) => (
+                            <AnimatedTouchable
+                                key={product.id}
+                                entering={FadeInDown.delay(400 + index * 100).duration(600)}
+                                style={styles.productCard}
+                                onPress={() => router.push('/product/detail')}
+                            >
+                                <Image source={{ uri: product.image }} style={styles.productImage} />
+                                <View style={styles.productInfo}>
+                                    <Text style={[styles.productName, { color: textColor }]}>{product.name}</Text>
+                                    <Text style={[styles.productPrice, { color: secondaryText }]}>{product.price}</Text>
+                                </View>
+                            </AnimatedTouchable>
+                        ))}
+                    </View>
+                </View>
+            </ScrollView>
+        </View>
+    );
 };
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: "#fff",
-    alignItems: "center",
-    paddingHorizontal: 20,
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    marginBottom: 10,
-    marginTop: 50,
-  },
-  subtitle: {
-    fontSize: 16,
-    color: "#666",
-    marginBottom: 40,
-    textAlign: "center",
-  },
-  button: {
-    backgroundColor: "#007BFF",
-    paddingVertical: 15,
-    paddingHorizontal: 30,
-    borderRadius: 8,
-    alignItems: "center",
-    width: "100%",
-    elevation: 3,
-  },
-  cartButton: {
-    marginTop: 20,
-    borderRadius: 8,
-     width: 100,
-     height: 60,
-     alignItems: "center",
-     justifyContent: "center",
-    // Un azul diferente para distinguirlo
-    backgroundColor: "#17a2b8",
-  },
-  buttonText: {
-    color: "white",
-    fontSize: 18,
-    fontWeight: "bold",
-  },
-  buttonSubText: {
-    color: "#E0E0E0",
-    fontSize: 10,
-    marginTop: 5,
-  },
-  buttonSubTextCart: {
-    color: "#000",
-    fontSize: 20,
-    marginTop: 5,
-  },
+    container: {
+        flex: 1,
+    },
+    scrollContent: {
+        paddingBottom: 40,
+    },
+    header: {
+        paddingHorizontal: 20,
+        marginBottom: 20,
+        gap: 15,
+    },
+    headerTop: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+    },
+    logo: {
+        fontSize: 24,
+        fontWeight: '900',
+        letterSpacing: 1,
+        marginBottom: 5,
+    },
+    heroContainer: {
+        width: width,
+        height: 500,
+        marginBottom: 40,
+        position: 'relative',
+    },
+    heroImage: {
+        width: '100%',
+        height: '100%',
+        resizeMode: 'cover',
+    },
+    heroOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.2)',
+        justifyContent: 'center',
+        alignItems: 'center',
+        padding: 20,
+    },
+    heroTitle: {
+        color: '#FFF',
+        fontSize: 42,
+        fontWeight: '900',
+        letterSpacing: 2,
+        textAlign: 'center',
+        marginBottom: 10,
+    },
+    heroSubtitle: {
+        color: '#FFF',
+        fontSize: 14,
+        letterSpacing: 3,
+        marginBottom: 30,
+        fontWeight: '600',
+    },
+    heroButton: {
+        paddingHorizontal: 30,
+        paddingVertical: 15,
+        borderRadius: 0, // Square buttons for minimalist look
+    },
+    heroButtonText: {
+        fontSize: 14,
+        fontWeight: 'bold',
+        letterSpacing: 1,
+    },
+    section: {
+        marginBottom: 40,
+    },
+    sectionTitle: {
+        fontSize: 18,
+        fontWeight: '800',
+        letterSpacing: 1,
+        paddingHorizontal: 20,
+        marginBottom: 20,
+        textTransform: 'uppercase',
+    },
+    categoriesList: {
+        paddingHorizontal: 20,
+        gap: 15,
+    },
+    categoryCard: {
+        width: 200,
+        height: 250,
+        backgroundColor: '#f0f0f0',
+        justifyContent: 'center',
+        alignItems: 'center',
+    },
+    categoryImage: {
+        ...StyleSheet.absoluteFillObject,
+    },
+    categoryOverlay: {
+        ...StyleSheet.absoluteFillObject,
+        backgroundColor: 'rgba(0,0,0,0.3)',
+    },
+    categoryName: {
+        color: '#FFF',
+        fontSize: 20,
+        fontWeight: '800',
+        letterSpacing: 2,
+        zIndex: 1,
+    },
+    featuredGrid: {
+        flexDirection: 'row',
+        flexWrap: 'wrap',
+        paddingHorizontal: 20,
+        gap: 15,
+    },
+    productCard: {
+        width: (width - 55) / 2,
+        marginBottom: 10,
+    },
+    productImage: {
+        width: '100%',
+        height: 250,
+        backgroundColor: '#f8f8f8',
+        marginBottom: 10,
+    },
+    productInfo: {
+        alignItems: 'flex-start',
+    },
+    productName: {
+        fontSize: 12,
+        fontWeight: '700',
+        letterSpacing: 0.5,
+        marginBottom: 4,
+        textTransform: 'uppercase',
+    },
+    productPrice: {
+        fontSize: 12,
+        fontWeight: '400',
+    },
 });
 
 export default HomeScreen;

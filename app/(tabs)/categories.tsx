@@ -1,18 +1,74 @@
 import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
     ActivityIndicator,
     FlatList,
+    LayoutAnimation,
+    Platform,
     StyleSheet,
     Text,
     TouchableOpacity,
+    UIManager,
     View
 } from 'react-native';
 import Animated, { FadeInDown } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStorefront } from '../src/context/storefront.context';
 import { useTheme } from '../src/context/theme.context';
+
+// Enable LayoutAnimation on Android
+if (Platform.OS === 'android' && UIManager.setLayoutAnimationEnabledExperimental) {
+    UIManager.setLayoutAnimationEnabledExperimental(true);
+}
+
+const CategoryItem = ({ item, index, onPress, isDark, textColor, secondaryText }: any) => {
+    const [expanded, setExpanded] = useState(false);
+    const hasChildren = item.children && item.children.length > 0;
+
+    const toggleExpand = () => {
+        LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+        setExpanded(!expanded);
+    };
+
+    return (
+        <Animated.View entering={FadeInDown.delay(index * 50).duration(500)} style={styles.itemContainer}>
+            <View style={styles.row}>
+                <TouchableOpacity 
+                    style={styles.mainTouchable} 
+                    onPress={() => onPress(item)}
+                >
+                    <Text style={[styles.categoryName, { color: textColor }]}>{item.name}</Text>
+                </TouchableOpacity>
+                
+                {hasChildren && (
+                    <TouchableOpacity onPress={toggleExpand} style={styles.expandButton}>
+                        <Ionicons 
+                            name={expanded ? "chevron-up" : "chevron-down"} 
+                            size={20} 
+                            color={secondaryText} 
+                        />
+                    </TouchableOpacity>
+                )}
+            </View>
+
+            {expanded && hasChildren && (
+                <View style={styles.subList}>
+                    {item.children.map((child: any) => (
+                        <TouchableOpacity 
+                            key={child.id} 
+                            style={styles.subItem}
+                            onPress={() => onPress(child)}
+                        >
+                            <Text style={[styles.subItemText, { color: secondaryText }]}>{child.name}</Text>
+                            <Ionicons name="arrow-forward" size={12} color={secondaryText} />
+                        </TouchableOpacity>
+                    ))}
+                </View>
+            )}
+        </Animated.View>
+    );
+};
 
 const CategoriesScreen = () => {
     const router = useRouter();
@@ -25,47 +81,16 @@ const CategoriesScreen = () => {
     const bgColor = isDark ? '#000000' : '#FFFFFF';
     const textColor = isDark ? '#FFFFFF' : '#000000';
     const secondaryText = isDark ? '#AAAAAA' : '#666666';
-    const cardBg = isDark ? '#111111' : '#F9F9F9';
 
     useEffect(() => {
         fetchCategories();
     }, []);
 
     const handleCategoryPress = (category: any) => {
-        // Navigate to PLP with category path
-        // Assuming category.url is like "https://store.com/clothing/shirts"
-        // We need to extract the path segments.
-        // Or better, use the category ID or name if the URL structure is complex.
-        // For VTEX, the URL usually contains the path.
-        
-        // Simple extraction logic (adjust based on actual VTEX URL structure)
         const path = category.url.replace(/^https?:\/\/[^\/]+/, ''); 
-        // path might be "/clothing/shirts"
-        
-        // Remove leading slash
         const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-        
         router.push(`/(tabs)/${cleanPath}`);
     };
-
-    const renderCategoryItem = ({ item, index }: { item: any, index: number }) => (
-        <Animated.View entering={FadeInDown.delay(index * 50).duration(500)}>
-            <TouchableOpacity 
-                style={[styles.categoryCard, { backgroundColor: cardBg }]}
-                onPress={() => handleCategoryPress(item)}
-            >
-                <View style={styles.categoryInfo}>
-                    <Text style={[styles.categoryName, { color: textColor }]}>{item.name}</Text>
-                    {item.children && item.children.length > 0 && (
-                        <Text style={[styles.subcategoriesText, { color: secondaryText }]}>
-                            {item.children.length} Subcategories
-                        </Text>
-                    )}
-                </View>
-                <Ionicons name="chevron-forward" size={20} color={secondaryText} />
-            </TouchableOpacity>
-        </Animated.View>
-    );
 
     if (isLoading && categories.length === 0) {
         return (
@@ -95,7 +120,16 @@ const CategoriesScreen = () => {
             <FlatList
                 data={categories}
                 keyExtractor={(item) => String(item.id)}
-                renderItem={renderCategoryItem}
+                renderItem={({ item, index }) => (
+                    <CategoryItem 
+                        item={item} 
+                        index={index} 
+                        onPress={handleCategoryPress}
+                        isDark={isDark}
+                        textColor={textColor}
+                        secondaryText={secondaryText}
+                    />
+                )}
                 contentContainerStyle={styles.listContent}
                 showsVerticalScrollIndicator={false}
             />
@@ -127,26 +161,46 @@ const styles = StyleSheet.create({
     listContent: {
         padding: 20,
     },
-    categoryCard: {
+    itemContainer: {
+        marginBottom: 15,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.03)',
+        paddingBottom: 15,
+    },
+    row: {
         flexDirection: 'row',
         alignItems: 'center',
         justifyContent: 'space-between',
-        padding: 20,
-        marginBottom: 10,
-        borderRadius: 0, // Sharp corners
     },
-    categoryInfo: {
+    mainTouchable: {
         flex: 1,
+        paddingVertical: 5,
+    },
+    expandButton: {
+        padding: 10,
     },
     categoryName: {
-        fontSize: 16,
+        fontSize: 18,
         fontWeight: '700',
-        letterSpacing: 1,
+        letterSpacing: 0.5,
         textTransform: 'uppercase',
-        marginBottom: 4,
     },
-    subcategoriesText: {
-        fontSize: 12,
+    subList: {
+        marginTop: 10,
+        paddingLeft: 10,
+    },
+    subItem: {
+        flexDirection: 'row',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        paddingVertical: 12,
+        borderBottomWidth: 1,
+        borderBottomColor: 'rgba(0,0,0,0.02)',
+    },
+    subItemText: {
+        fontSize: 14,
+        fontWeight: '500',
+        letterSpacing: 0.5,
     },
     errorText: {
         marginBottom: 20,

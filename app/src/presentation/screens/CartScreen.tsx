@@ -1,4 +1,5 @@
 import { Ionicons } from '@expo/vector-icons';
+import { useRouter } from 'expo-router';
 import React from 'react';
 import {
     ActivityIndicator,
@@ -113,6 +114,7 @@ const CartItemCard = ({
 };
 
 const CartScreen = () => {
+  const router = useRouter();
   const { cart, isSyncing, syncError, clearCart } = useStorefront().useCartStore();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -163,6 +165,7 @@ const CartScreen = () => {
         </View>
         <TouchableOpacity
           style={[styles.checkoutButton, { backgroundColor: isDark ? '#FFFFFF' : '#000000' }]}
+          onPress={() => router.push('/checkout')}
         >
           <Text style={[styles.checkoutButtonText, { color: isDark ? '#000000' : '#FFFFFF' }]}>
             CHECKOUT

@@ -10,19 +10,22 @@ import Animated, {
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useTheme } from '../../context/theme.context';
+import { CartBadge } from './CartBadge';
 
 const TabItem = ({ 
     label, 
     icon, 
     isFocused, 
     onPress, 
-    theme 
+    theme,
+    isCart
 }: { 
     label: string, 
     icon: any, 
     isFocused: boolean, 
     onPress: () => void,
-    theme: 'light' | 'dark'
+    theme: 'light' | 'dark',
+    isCart?: boolean
 }) => {
     const isDark = theme === 'dark';
     
@@ -42,11 +45,14 @@ const TabItem = ({
     return (
         <TouchableOpacity onPress={onPress} activeOpacity={0.8}>
             <Animated.View style={[styles.tabItem, rContainerStyle]}>
-                <Ionicons 
-                    name={icon} 
-                    size={20} 
-                    color={isFocused ? activeText : inactiveText} 
-                />
+                <View>
+                    <Ionicons 
+                        name={icon} 
+                        size={20} 
+                        color={isFocused ? activeText : inactiveText} 
+                    />
+                    {isCart && <CartBadge />}
+                </View>
                 {isFocused && (
                     <Animated.Text 
                         entering={ZoomIn.duration(300)} 
@@ -77,9 +83,6 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
             }
         ]}>
             {state.routes.map((route, index) => {
-                // Filter out routes that shouldn't be in the tab bar
-                // Although _layout.tsx handles href: null, this is an extra safety layer
-                // and ensures order if we wanted to enforce it.
                 const allowedRoutes = ['index', 'categories', 'cart', 'profile'];
                 if (!allowedRoutes.includes(route.name)) return null;
 
@@ -105,14 +108,12 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
                     }
                 };
 
-                // Map route names to icons
                 let iconName: any = 'home-outline';
                 if (route.name === 'index') iconName = isFocused ? 'home' : 'home-outline';
                 if (route.name === 'categories') iconName = isFocused ? 'grid' : 'grid-outline';
                 if (route.name === 'cart') iconName = isFocused ? 'cart' : 'cart-outline';
                 if (route.name === 'profile') iconName = isFocused ? 'person' : 'person-outline';
 
-                // Clean up label
                 let displayLabel = label as string;
                 if (route.name === 'index') displayLabel = 'Home';
                 if (route.name === 'categories') displayLabel = 'Shop';
@@ -127,6 +128,7 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
                         isFocused={isFocused}
                         onPress={onPress}
                         theme={theme}
+                        isCart={route.name === 'cart'}
                     />
                 );
             })}

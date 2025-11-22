@@ -1,7 +1,7 @@
 // src/data/providers/vtex.provider.ts
 
 import { AuthRepository } from "@/app/src/domain/repositories/auth.repository";
-import { getVtexOrderFormId, saveVtexAuthCookies, saveVtexOrderFormId } from "@/app/src/shared/utils/auth-storage.util";
+import { getVtexOrderFormId, getVtexSessionCookies, saveVtexAuthCookies, saveVtexOrderFormId, saveVtexSessionCookies } from "@/app/src/shared/utils/auth-storage.util";
 import { Product as DomainProduct } from "../../../domain/entities/product";
 import { createFetcher } from "../../http/fetcher";
 import {
@@ -265,6 +265,9 @@ export class VtexProvider implements AuthRepository {
         // Guardamos el orderFormId. Este ID se usará para construir la cookie
         // 'checkout.vtex.com=__ofid={ID}' en futuras llamadas de carrito.
         await saveVtexOrderFormId(orderForm.orderFormId); 
+
+        // 4. Actualizar la sesión de VTEX
+        await this.updateSession(email);
         
     } catch (e) {
         // No lanzamos un error aquí, ya que el login fue exitoso.
@@ -422,16 +425,21 @@ console.log("variables", variables)
 
     const currentOrderFormId = orderFormId || await getVtexOrderFormId();
     const orderFormUrl = `https://${ACCOUNT}.myvtex.com/api/checkout/pub/orderForm/${currentOrderFormId || ''}`;
-    // Si orderFormId es vacío, VTEX lo interpreta como "crear nuevo".
+    
+    const headers: Record<string, string> = {
+        'Accept': 'application/json',
+        'Content-Type': 'application/json',
+    };
+
+    // Only send the cookie if we have a valid ID
+    if (currentOrderFormId) {
+        headers['Cookie'] = `checkout.vtex.com=__ofid=${currentOrderFormId};`;
+    }
 
     try {
-      // Usamos fetch ya que es una API REST simple y maneja la cookie de checkout.
       const response = await fetch(orderFormUrl, {
         method: "GET",
-        headers: {
-          "Accept": "application/json",
-          "Content-Type": "application/json",
-        },
+        headers: headers,
       });
 
       if (!response.ok) {
@@ -442,10 +450,6 @@ console.log("variables", variables)
 
       const orderFormJson: VtexOrderForm = await response.json();
       
-      // La cookie 'checkout.vtex.com' se establece automáticamente si usas fetch/axios
-      // en un entorno web, PERO DEBEMOS ASUMIR QUE EN RN NO ES ASÍ y
-      // que el ID se obtendrá del JSON y se persistirá por separado.
-
       return orderFormJson;
 
     } catch (error) {
@@ -542,7 +546,7 @@ console.log("variables", variables)
       //   headers: {
       //     'Accept': 'application/json',
       //     'Content-Type': 'application/json',
-      //     'VtexIdclientAutCookie': 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjEwQzNFMDhDNkE4RkFFRkQ2MUNEQzBFRjVEQjgxOTZCNDU0QzBEMDIiLCJ0eXAiOiJqd3QifQ.eyJzdWIiOiJwYXVsYS5tb250ZXNyb2RyaWd1ZXpAYmFsbG9vbi1ncm91cC5jb20iLCJhY2NvdW50IjoiaGFuZXNhciIsImF1ZGllbmNlIjoid2Vic3RvcmUiLCJzZXNzIjoiZTY2MWFmM2MtNDNkMy00YjQxLWI4YWItMTYzODUyOWZjZjhlIiwiZXhwIjoxNzYzODUxNjY4LCJ0eXBlIjoidXNlciIsInVzZXJJZCI6ImE1NzIwOGIwLThjMWItNGMwNy1iNGU2LWYyMjMwNDFiNjBjNyIsImlhdCI6MTc2Mzc2NTI2OCwiaXNSZXByZXNlbnRhdGl2ZSI6ZmFsc2UsImlzcyI6InRva2VuLWVtaXR0ZXIiLCJqdGkiOiI5ZDkwNWFhNS0xNmMxLTQ0M2MtODY0ZC0yOWZhNTkzNmMxOTkifQ.RVw31Jcyu7ANyiAmecPOeT7EpEAUt5PQy-vHq34bL9Mc0As_EHEDOhMS2m15vcFTpcV_p5fq7rwp6c8QSxLq4Q'
+      //     'VtexIdclientAutCookie': 'eyJhbGciOiJFUzI1NiIsImtpZCI6IjEwQzNFMDhDNkE4RkFFRkQ2MUNEQzBFRjVEQjgxOTZCNDU0QzBEMDIiLCJ0eXAiOiJqd3QifQ.eyJzdWIiOiJwYXVsYS5tb250ZXNyb2RyaWd1ZXpAYmFsbG9vbi1ncm91cC5jb20iLCJhY2NvdW50IjoiaGFuZXNhciIsImF1ZGllbmNlIjoid2Vic3RvcmUiLCJzZXNzIjoiZTY2MWFmM2MtNDNkMy00YjQxLWI4YWItMTYzODUyOWZjZjhlIiwiZXhwIjoxNzYzODUxNjY4LCJ0eXBlIjoidXNlciIsInVzZXJJZCI6ImE1NzIwOGIwLThjMWItNGMwNy1iNGU2LWYyMjMwNDFiNjBjNyIsImlhdCI6MTc2Mzc2NTI2OCwiaXNSZXByZXNlbnRhdGl2ZSI6ZmFsc2UsImlzcyI6InRva2VuLWVtaXR0ZXIiLCJqdGkiOiI5ZDkwNWFhNS0xNmMxLTQ0M2MtODY0ZC0yOWZhNTkzNmMxOTkifQ.RVw31Jcyu7ANyiAmecPOeT7EpEAUt5PQy-vHq34bL9Mc0As_EHEDOhMS2m15vcFTpcX_p5fq7rwp6c8QSxLq4Q'
       //   //  'Cookie': cookieHeader
       //   }
       // });
@@ -576,6 +580,92 @@ console.log("variables", variables)
     } catch (error) {
       console.error("Error fetching order detail:", error);
       throw new Error("Failed to fetch order detail");
+    }
+  }
+
+  async setOrderFormUserProfile(orderFormId: string, userProfile: any): Promise<void> {
+    try {
+      const url = `${this.storeUrl}/api/checkout/pub/orderForm/${orderFormId}/attachments/clientProfileData`;
+      
+      const body = {
+        email: userProfile.email,
+        firstName: userProfile.firstName,
+        lastName: userProfile.lastName,
+        phone: userProfile.phone,
+        document: userProfile.document,
+        documentType: userProfile.documentType, // Optional but good to have
+      };
+
+      console.log("Setting user profile on OrderForm:", url, body);
+
+      await this.apiCall(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(body),
+      });
+      
+      console.log("User profile set on OrderForm successfully.");
+    } catch (error) {
+      console.error("Error setting user profile on OrderForm:", error);
+      // We don't throw here to avoid blocking the user if this fails, 
+      // but we log it. It might be critical for checkout though.
+    }
+  }
+
+  async updateSession(email?: string): Promise<void> {
+    try {
+        const url = `${this.storeUrl}/api/sessions`;
+        const body: any = {
+            public: {}
+        };
+
+        if (email) {
+             body.public.storeUserEmail = { value: email };
+        } else {
+             body.public.country = { value: "USA" };
+        }
+
+        console.log("Updating VTEX Session:", url, body);
+
+        const { session, segment } = await getVtexSessionCookies();
+        
+        const headers: Record<string, string> = {
+            'Content-Type': 'application/json',
+            'Accept': 'application/json',
+        };
+        
+        if (session || segment) {
+            const cookieParts = [];
+            if (session) cookieParts.push(`vtex_session=${session}`);
+            if (segment) cookieParts.push(`vtex_segment=${segment}`);
+            headers['Cookie'] = cookieParts.join('; ');
+        }
+
+        const response = await fetch(url, {
+            method: 'PATCH',
+            headers: headers,
+            body: JSON.stringify(body)
+        });
+
+        if (!response.ok) {
+            console.warn("Failed to update session:", response.status);
+            return;
+        }
+
+        const data = await response.json();
+        console.log("Session Update Response:", data);
+
+        const { sessionToken, segmentToken } = data;
+
+        if (sessionToken || segmentToken) {
+            await saveVtexSessionCookies(sessionToken, segmentToken);
+            console.log("VTEX Session Cookies Updated via Body");
+        }
+
+    } catch (error) {
+        console.error("Error updating VTEX session:", error);
     }
   }
 }

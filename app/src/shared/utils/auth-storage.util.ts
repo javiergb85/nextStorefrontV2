@@ -62,6 +62,8 @@ export const clearAllAuthTokens = async (): Promise<void> => {
     await SecureStore.deleteItemAsync(SHOPIFY_TOKEN_KEY);
     await SecureStore.deleteItemAsync(VTEX_COOKIES_KEY);
     await SecureStore.deleteItemAsync(VTEX_ORDER_FORM_ID_KEY);
+    await SecureStore.deleteItemAsync(VTEX_SESSION_KEY);
+    await SecureStore.deleteItemAsync(VTEX_SEGMENT_KEY);
     await clearVtexCredentials(); // Borra las credenciales guardadas
   } catch (e) {
     console.warn('Failed to clear auth storage.', e);
@@ -103,4 +105,27 @@ export const saveVtexOrderFormId = async (orderFormId: string | null): Promise<v
 // 💡 FUNCIÓN NUEVA: Obtener el OrderFormId
 export const getVtexOrderFormId = async (): Promise<string | null> => {
     return SecureStore.getItemAsync(VTEX_ORDER_FORM_ID_KEY);
+};
+
+const VTEX_SESSION_KEY = 'vtexSession';
+const VTEX_SEGMENT_KEY = 'vtexSegment';
+
+export const saveVtexSessionCookies = async (session: string | null, segment: string | null) => {
+    if (session) {
+        await SecureStore.setItemAsync(VTEX_SESSION_KEY, session);
+    } else {
+        await SecureStore.deleteItemAsync(VTEX_SESSION_KEY);
+    }
+
+    if (segment) {
+        await SecureStore.setItemAsync(VTEX_SEGMENT_KEY, segment);
+    } else {
+        await SecureStore.deleteItemAsync(VTEX_SEGMENT_KEY);
+    }
+};
+
+export const getVtexSessionCookies = async () => {
+    const session = await SecureStore.getItemAsync(VTEX_SESSION_KEY);
+    const segment = await SecureStore.getItemAsync(VTEX_SEGMENT_KEY);
+    return { session, segment };
 };

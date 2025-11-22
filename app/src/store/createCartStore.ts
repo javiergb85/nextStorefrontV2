@@ -1,7 +1,7 @@
 import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import {
-  Cart, CartItem
+    Cart, CartItem
 } from "../domain/entities/cart";
 import { RemoveAllCartItemsUseCase } from "../domain/use-cases/remove-all-cart-items.use-case";
 import { RemoveCartItemUseCase } from "../domain/use-cases/remove-cart-item.use-case";
@@ -30,7 +30,7 @@ export interface CartState {
   _setSyncError: (error: string | null) => void;
   _revertToLastKnownState: () => void;
   syncCart: (items: { id: string; quantity: number }[]) => void;
-
+  reset: () => void; // 👈 New reset action
 }
 
 // Función helper para "debouncing"
@@ -60,6 +60,18 @@ export const createCartStore = (
         lastKnownGoodState: { cart: null },
 
         // --- ACCIONES OPTIMISTAS ---
+        
+        reset: () => {
+            console.log("Resetting CartStore state...");
+            set({
+                cart: null,
+                address: null,
+                paymentInfo: null,
+                isSyncing: false,
+                syncError: null,
+                lastKnownGoodState: { cart: null },
+            });
+        },
 
         addItem: (id, quantity) => {
           set((state) => {

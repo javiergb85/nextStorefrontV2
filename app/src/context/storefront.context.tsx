@@ -1,4 +1,4 @@
-import React, { createContext, ReactNode, useContext, useMemo } from "react";
+import React, { createContext, ReactNode, useContext, useEffect, useMemo } from "react";
 import { initializeServices } from "../di";
 import * as vtexSearchUtils from '../shared/utils/vtex-search.utils';
 import { createCartStore } from "../store/createCartStore";
@@ -81,7 +81,9 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
     () => createLoginStore(
         tempServices.loginUseCase, 
         tempServices.getUserProfileUseCase,
-        activeProviderName
+        tempServices.removeAllCartItemsUseCase, // 👈 Pass the use case
+        activeProviderName,
+        tempServices.provider 
     ),
     [tempServices, activeProviderName]
   );
@@ -120,6 +122,17 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
     }),
     [services, useLoginStore]
   );
+
+  // 💡 EFFECT: Listen for logout and reset cart
+  useEffect(() => {
+      const unsubscribe = useLoginStore.subscribe((state) => {
+          if (!state.accessToken) {
+              console.log("Logout detected in StorefrontProvider. Resetting CartStore.");
+              hooks.useCartStore.getState().reset();
+          }
+      });
+      return () => unsubscribe();
+  }, [useLoginStore, hooks]);
 
   return (
     <StorefrontContext.Provider value={hooks}>

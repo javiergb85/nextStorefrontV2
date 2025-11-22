@@ -1,4 +1,4 @@
-import { getAuthToken, getVtexOrderFormId } from "../../shared/utils/auth-storage.util";
+import { getAuthToken, getVtexOrderFormId, getVtexSessionCookies } from "../../shared/utils/auth-storage.util";
 
 interface FetcherConfig {
   baseUrl: string;
@@ -33,6 +33,7 @@ export const createFetcher = (config: FetcherConfig, loginStoreApi?: LoginStoreA
 
     const authToken = await getAuthToken();
     const orderFormId = await getVtexOrderFormId(); 
+    const { session, segment } = await getVtexSessionCookies();
 
     const cookies: string[] = [];
     // Lógica de configuración de encabezados (permanece igual)
@@ -51,8 +52,16 @@ export const createFetcher = (config: FetcherConfig, loginStoreApi?: LoginStoreA
       }
     }
 
-    if (config.provider === "Vtex" && orderFormId) {
-      cookies.push(`checkout.vtex.com=__ofid=${orderFormId}`);
+    if (config.provider === "Vtex") {
+        if (orderFormId) {
+            cookies.push(`checkout.vtex.com=__ofid=${orderFormId}`);
+        }
+        if (session) {
+            cookies.push(`vtex_session=${session}`);
+        }
+        if (segment) {
+            cookies.push(`vtex_segment=${segment}`);
+        }
     }
 
       if (cookies.length > 0) {

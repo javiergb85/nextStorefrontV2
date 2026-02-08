@@ -11,7 +11,7 @@ const OrdersScreen = () => {
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
   const { orders, isLoading, error, fetchOrders } = useStorefront().useOrderStore();
-  const { userProfile } = useStorefront().useLoginStore();
+  const { userProfile, isGuest, logout } = useStorefront().useLoginStore();
   
   const isDark = theme === 'dark';
   const bgColor = isDark ? '#000000' : '#FFFFFF';
@@ -26,13 +26,13 @@ const OrdersScreen = () => {
 
   useEffect(() => {
     console.log("OrdersScreen: useEffect triggered", userProfile?.email);
-    if (userProfile?.email) {
+    if (userProfile?.email && !isGuest) {
       console.log("OrdersScreen: calling fetchOrders with", userProfile.email);
       fetchOrders(userProfile.email);
     } else {
-      console.log("OrdersScreen: userProfile.email is missing");
+      console.log("OrdersScreen: userProfile.email is missing or user is guest");
     }
-  }, [userProfile]);
+  }, [userProfile, isGuest]);
 
   const renderItem = ({ item }: { item: any }) => (
     <TouchableOpacity
@@ -40,7 +40,7 @@ const OrdersScreen = () => {
       onPress={() => router.push({ pathname: '/(tabs)/order-detail', params: { orderId: item.orderId } })}
     >
       <View style={styles.orderHeader}>
-        <Text style={[styles.orderId, { color: textColor }]}>Order #{item.orderId}</Text>
+        <Text style={[styles.orderId, { color: textColor }]}>Pedido #{item.orderId}</Text>
         <Text style={[styles.orderDate, { color: secondaryText }]}>
           {new Date(item.creationDate).toLocaleDateString()}
         </Text>
@@ -58,14 +58,28 @@ const OrdersScreen = () => {
 
   return (
     <View style={[styles.container, { backgroundColor: bgColor, paddingTop: insets.top }]}>
-      <View style={styles.header}>
+      <View style={[styles.header, { borderBottomColor: borderColor }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
           <Ionicons name="arrow-back" size={24} color={textColor} />
         </TouchableOpacity>
-        <Text style={[styles.title, { color: textColor }]}>My Orders</Text>
+        <Text style={[styles.title, { color: textColor }]}>Mis Pedidos</Text>
       </View>
 
-      {isLoading ? (
+      {isGuest ? (
+        <View style={styles.guestContainer}>
+          <Ionicons name="receipt-outline" size={80} color={secondaryText} />
+          <Text style={[styles.guestTitle, { color: textColor }]}>Inicia sesión para ver tus pedidos</Text>
+          <TouchableOpacity 
+            style={[styles.loginButton, { backgroundColor: textColor }]}
+            onPress={async () => {
+              await logout(); // Importante: Limpia el estado de invitado
+              router.replace('/login');
+            }}
+          >
+            <Text style={[styles.loginButtonText, { color: bgColor }]}>INICIAR SESIÓN</Text>
+          </TouchableOpacity>
+        </View>
+      ) : isLoading ? (
         <View style={styles.center}>
           <ActivityIndicator size="large" color={primaryColor} />
         </View>
@@ -73,7 +87,7 @@ const OrdersScreen = () => {
         <View style={styles.center}>
           <Text style={{ color: errorColor }}>{error}</Text>
           <TouchableOpacity onPress={() => userProfile?.email && fetchOrders(userProfile.email)}>
-            <Text style={{ color: primaryColor, marginTop: 10 }}>Retry</Text>
+            <Text style={{ color: primaryColor, marginTop: 10 }}>Reintentar</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -84,7 +98,7 @@ const OrdersScreen = () => {
           contentContainerStyle={styles.listContent}
           ListEmptyComponent={
             <View style={styles.center}>
-              <Text style={{ color: secondaryText }}>No orders found.</Text>
+              <Text style={{ color: secondaryText }}>No se encontraron pedidos.</Text>
             </View>
           }
         />
@@ -148,6 +162,31 @@ const styles = StyleSheet.create({
   },
   orderStatus: {
     fontSize: 14,
+  },
+  guestContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 40,
+  },
+  guestTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    marginTop: 20,
+    marginBottom: 30,
+    textAlign: 'center',
+    textTransform: 'uppercase',
+  },
+  loginButton: {
+    width: '100%',
+    height: 50,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  loginButtonText: {
+    fontSize: 14,
+    fontWeight: '800',
+    letterSpacing: 2,
   },
 });
 

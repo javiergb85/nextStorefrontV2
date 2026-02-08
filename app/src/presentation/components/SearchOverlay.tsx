@@ -1,40 +1,41 @@
 import { Ionicons } from '@expo/vector-icons';
 import {
-  BackdropFilter,
-  Canvas,
-  Circle,
-  DisplacementMap,
-  Fill,
-  Group,
-  Oval,
-  Shader,
-  Skia,
-  SweepGradient,
-  vec
+    BackdropFilter,
+    Canvas,
+    Circle,
+    DisplacementMap,
+    Fill,
+    Group,
+    Oval,
+    Path,
+    Shader,
+    Skia,
+    SweepGradient,
+    vec
 } from '@shopify/react-native-skia';
 import { BlurView } from 'expo-blur';
 import React, { useEffect, useMemo, useState } from 'react';
 import {
-  Dimensions,
-  Keyboard,
-  Modal,
-  Platform,
-  StyleSheet,
-  TextInput,
-  TouchableOpacity,
-  View
+    Dimensions,
+    Keyboard,
+    Modal,
+    Platform,
+    StyleSheet,
+    TextInput,
+    TouchableOpacity,
+    View
 } from 'react-native';
 import Animated, {
-  Easing,
-  runOnJS,
-  useAnimatedStyle,
-  useDerivedValue,
-  useSharedValue,
-  withDelay,
-  withRepeat,
-  withSequence,
-  withSpring,
-  withTiming
+    Easing,
+    runOnJS,
+    useAnimatedStyle,
+    useDerivedValue,
+    useSharedValue,
+    withDelay,
+    withRepeat,
+    withSequence,
+    withSpring,
+    withTiming
 } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -117,15 +118,39 @@ const WaveBackground = ({ progress }: { progress: Animated.SharedValue<number> }
 
 // --- Components ---
 
-const LoadingEyes = ({ isLoading, scale = 1 }: { isLoading: boolean, scale?: number }) => {
+const SearchMascot = ({ isLoading, isFound, scale = 1 }: { isLoading: boolean, isFound: boolean, scale?: number }) => {
     // Animation values
     const eyeScaleY = useSharedValue(1);
     const eyeTranslateX = useSharedValue(0);
     const eyeTranslateY = useSharedValue(0);
     const rotation = useSharedValue(0);
+    const smileProgress = useSharedValue(0); // 0 = straight/hidden, 1 = full smile
 
+    // Rotation Effect (Persists as long as isLoading is true)
     useEffect(() => {
         if (isLoading) {
+            rotation.value = withRepeat(withTiming(360, { duration: 2000, easing: Easing.linear }), -1, false);
+        } else {
+            rotation.value = 0;
+        }
+        return () => { rotation.value = 0; };
+    }, [isLoading]);
+
+    // Eyes & Smile Logic
+    useEffect(() => {
+        if (isFound) {
+            // Happy state!
+            // Stop random eye movements (handled by cleanup of the other effect if we separated it, 
+            // but here we just override values)
+            
+            eyeTranslateX.value = withSpring(0);
+            eyeTranslateY.value = withSpring(0);
+            eyeScaleY.value = withTiming(0.2, { duration: 300 }); // Squint eyes
+            smileProgress.value = withSpring(1, { damping: 12 });
+        } else if (isLoading) {
+            // Searching state
+            smileProgress.value = withTiming(0);
+            
             // Blinking animation
             const blink = () => {
                 eyeScaleY.value = withSequence(
@@ -145,9 +170,9 @@ const LoadingEyes = ({ isLoading, scale = 1 }: { isLoading: boolean, scale?: num
                 eyeTranslateY.value = withSpring(y);
             };
             const lookInterval = setInterval(lookAround, 1500);
-
-            // Border rotation
+             // Border rotation
             rotation.value = withRepeat(withTiming(360, { duration: 2000, easing: Easing.linear }), -1, false);
+
 
             return () => {
                 clearInterval(blinkInterval);
@@ -155,12 +180,14 @@ const LoadingEyes = ({ isLoading, scale = 1 }: { isLoading: boolean, scale?: num
                 eyeScaleY.value = 1;
                 eyeTranslateX.value = 0;
                 eyeTranslateY.value = 0;
-                rotation.value = 0;
+ rotation.value = 0;
             };
         } else {
+            smileProgress.value = 0;
+            eyeScaleY.value = 1;
             rotation.value = 0;
         }
-    }, [isLoading]);
+    }, [isLoading, isFound]);
 
     // Corrected: Return array directly, not object with transform property
     const eyeTransform = useDerivedValue(() => {
@@ -175,10 +202,30 @@ const LoadingEyes = ({ isLoading, scale = 1 }: { isLoading: boolean, scale?: num
         return [{ rotate: (rotation.value * Math.PI) / 180 }];
     });
 
+    // Smile Path
+    // We'll draw a quadratic bezier curve that animates from flat to curved
+    const smilePath = useDerivedValue(() => {
+        const p = smileProgress.value;
+        const path = Skia.Path.Make();
+        // Start point (left corner of mouth)
+        const startX = 14;
+        const startY = 28;
+        // End point (right corner of mouth)
+        const endX = 26;
+        const endY = 28;
+        // Control point (pulls the curve down)
+        const cpX = 20;
+        const cpY = 28 + (p * 6); // Moves down to create smile
+
+        path.moveTo(startX, startY);
+        path.quadTo(cpX, cpY, endX, endY);
+        return path;
+    });
+
     return (
         <View style={[styles.eyesContainer, { transform: [{ scale }] }]}>
             <Canvas style={{ width: 40, height: 40 }}>
-                 {/* Rotating Border (Glow Effect) */}
+                 {/* Rotating Border (Glow Effect) - Always show when loading (searching or found) */}
                  {isLoading && (
                     <Group origin={vec(20, 20)} transform={rotationTransform}>
                         <Circle cx={20} cy={20} r={18} style="stroke" strokeWidth={3}>
@@ -194,7 +241,7 @@ const LoadingEyes = ({ isLoading, scale = 1 }: { isLoading: boolean, scale?: num
                 <Circle cx={20} cy={20} r={14} color="white" />
 
                 {/* Eyes */}
-                {isLoading && (
+                {(isLoading || isFound) && (
                     <Group>
                          {/* Left Eye */}
                         <Oval 
@@ -210,10 +257,19 @@ const LoadingEyes = ({ isLoading, scale = 1 }: { isLoading: boolean, scale?: num
                             transform={eyeTransform}
                             origin={vec(26, 21)}
                         />
+                        
+                        {/* Smile */}
+                        <Path
+                            path={smilePath}
+                            color="#c2c2c2"
+                            style="stroke"
+                            strokeWidth={1}
+                            strokeCap="round"
+                        />
                     </Group>
                 )}
             </Canvas>
-            {!isLoading && (
+            {!isLoading && !isFound && (
                 <View style={StyleSheet.absoluteFill} pointerEvents="none">
                      <View style={{flex:1, justifyContent:'center', alignItems:'center'}}>
                         <Ionicons name="search" size={18} color="#ccc" />
@@ -257,6 +313,10 @@ interface SearchOverlayProps {
   onSearch: (query: string) => void;
 }
 
+import { useStorefront } from '../../context/storefront.context';
+
+// ... (SearchMascot definition)
+
 export const SearchOverlay: React.FC<SearchOverlayProps> = ({
   isVisible,
   onClose,
@@ -264,10 +324,14 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
 }) => {
   const [query, setQuery] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [searchStatus, setSearchStatus] = useState<'idle' | 'searching'>('idle');
+  const [searchStatus, setSearchStatus] = useState<'idle' | 'searching' | 'found'>('idle');
   const [showModal, setShowModal] = useState(false);
   const insets = useSafeAreaInsets();
   
+  // Access Storefront Context for prefetching
+  const { useProductStore } = useStorefront();
+  const { prefetchProducts } = useProductStore();
+
   // Animation Values
   const opacity = useSharedValue(0);
   const translateY = useSharedValue(height);
@@ -321,16 +385,31 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
      ],
   }));
 
-  const handleSearch = () => {
+  const handleSearch = async () => {
       if (!query.trim()) return;
       setIsLoading(true);
       setSearchStatus('searching'); // Switch to central loading view
       
-      // Simulate loading for demo purposes or wait for actual search
-      setTimeout(() => {
-          setIsLoading(false);
-          onSearch(query);
-      }, 3000); // Longer timeout to show off animation
+      // 1. Simulate "Thinking" / Searching delay
+      setTimeout(async () => {
+          // 2. Switch to "Found" state (Smile!)
+          setSearchStatus('found');
+
+          // 3. Start Prefetching in background
+          try {
+              console.log("Prefetching products for:", query);
+              await prefetchProducts({ query, from: 0, to: 9 });
+          } catch (e) {
+              console.warn("Prefetch failed, but proceeding to redirect:", e);
+          }
+
+          // 4. Wait a bit to show off the smile and "Found" text
+          setTimeout(() => {
+              setIsLoading(false);
+              onSearch(query);
+          }, 1500); // Show smile for 1.5s
+
+      }, 1500); // Search duration
   };
 
   return (
@@ -361,13 +440,16 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                 </TouchableOpacity>
 
                 {/* Central Loading View */}
-                {searchStatus === 'searching' && (
+                {(searchStatus === 'searching' || searchStatus === 'found') && (
                     <View style={styles.centralLoadingContainer}>
                         <View style={styles.centralLoadingRow}>
-                            <LoadingEyes isLoading={true} scale={1.8} />
+                            <SearchMascot isLoading={true} isFound={searchStatus === 'found'} scale={1.8} />
                             <View style={{ width: 20 }} /> 
                             <ShimmerText 
-                                text={`Buscando productos de\n${query}...`} 
+                                text={searchStatus === 'found' 
+                                    ? "¡Encontramos productos!\nPreparándolos para ti..." 
+                                    : `Buscando productos de\n${query}...`
+                                } 
                                 visible={true} 
                                 style={styles.centralLoadingText} 
                             />
@@ -376,26 +458,17 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                 )}
 
                 {/* Suggestions Area (Middle) - Hide when searching */}
-                {searchStatus !== 'searching' && (
+                {searchStatus === 'idle' && (
                     <View style={styles.suggestionsContainer}>
                         {/* Suggestions can go here */}
                     </View>
                 )}
 
-                {/* Bottom Input Section - Hide or Fade out when searching? User didn't specify, but usually we keep it or disable it. 
-                    Let's keep it but maybe hide the small loader since we have the big one. 
-                */}
+                {/* Bottom Input Section */}
                 <View style={[styles.bottomSection, { paddingBottom: Platform.OS === 'ios' ? 40 : 20 }]}>
-                    {/* Loading Text - Only show if NOT searching centrally (or maybe just hide it completely since we have central) */}
-                    {searchStatus !== 'searching' && (
-                        <View style={{ height: 20, marginBottom: 8, marginLeft: 52 }}>
-                            <ShimmerText text="Cargando..." visible={isLoading} />
-                        </View>
-                    )}
-
                     <View style={styles.inputRow}>
                         {/* Eyes / Icon - Always show animation if loading, even if central view is active */}
-                        <LoadingEyes isLoading={isLoading} />
+                        <SearchMascot isLoading={isLoading} isFound={searchStatus === 'found'} />
 
                         {/* Input */}
                         <TextInput
@@ -407,12 +480,12 @@ export const SearchOverlay: React.FC<SearchOverlayProps> = ({
                             onSubmitEditing={handleSearch}
                             returnKeyType="search"
                             selectionColor="#fff"
-                            editable={searchStatus !== 'searching'} // Disable input while searching
+                            editable={searchStatus === 'idle'} // Disable input while searching
                         />
 
                         {/* Send/Search Button */}
-                        <TouchableOpacity onPress={handleSearch} style={styles.sendButton} disabled={searchStatus === 'searching'}>
-                            <Ionicons name="arrow-up" size={20} color="#000" />
+                        <TouchableOpacity onPress={handleSearch} style={styles.sendButton} disabled={searchStatus !== 'idle'}>
+                            <Ionicons name="arrow-forward" size={20} color="#000" />
                         </TouchableOpacity>
                     </View>
                 </View>

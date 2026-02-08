@@ -3,6 +3,7 @@
 import { AuthRepository } from "@/app/src/domain/repositories/auth.repository";
 import { saveShopifyAccessToken } from "@/app/src/shared/utils/auth-storage.util";
 import { Product as DomainProduct } from "../../../domain/entities/product";
+import { SearchResult } from "../../../domain/entities/search-result";
 import { createFetcher } from "../../http/fetcher"; // Importa tu fetcher centralizado
 import { LOGIN_MUTATION, PRODUCT_DETAIL_HANDLE_QUERY, SEARCH_QUERY } from "../queries/queriesShopify";
 import { mapShopifyProductDetailToDomain, mapShopifySearchToDomain } from "./shopify.mapper";
@@ -40,7 +41,7 @@ export class ShopifyProvider implements AuthRepository {
   }
   
 
-  async fetchProducts(variables?: SearchVariables): Promise<DomainProduct[]> {
+  async fetchProducts(variables?: SearchVariables): Promise<SearchResult> {
        console.log("entre")
     try {
     
@@ -61,8 +62,13 @@ export class ShopifyProvider implements AuthRepository {
       // El manejo de errores `response.ok` y la conversión a JSON ya están dentro de tu `fetcher`.
 
       const rawProducts = rawData.data.search.edges.map((edge) => edge.node);
+      const products = rawProducts.map(mapShopifySearchToDomain);
 
-      return rawProducts.map(mapShopifySearchToDomain);
+      return {
+        products,
+        facets: [],
+        totalCount: products.length,
+      };
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Failed to fetch Shopify products: ${error.message}`);
@@ -179,6 +185,16 @@ export class ShopifyProvider implements AuthRepository {
 
   async getOrder(orderId: string): Promise<any> {
     console.warn("getOrder not implemented for Shopify");
+    return null;
+  }
+
+  async getCart(): Promise<any> {
+    console.warn("getCart not implemented for Shopify");
+    return null;
+  }
+
+  async getUserAddresses(email: string): Promise<any> {
+    console.warn("getUserAddresses not implemented for Shopify");
     return null;
   }
 }

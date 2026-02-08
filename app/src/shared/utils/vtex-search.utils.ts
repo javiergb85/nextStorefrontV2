@@ -67,50 +67,90 @@ export const getQuery = (obj: SearchInputParams): string => {
  * @returns La cadena de mapeo (map).
  */
 export const getMap = (obj: SearchInputParams): string => {
+  // If map is explicitly provided in the params (e.g. from query string), use it.
+  if (obj.map) {
+      return obj.map;
+  }
+
   const map: string[] = [];
 
   // Mapeo basado en la jerarquía de categorías
   if (obj?.department) map.push('category-1');
   if (obj?.category) map.push('category-2');
   
-  // Asumiendo que subCategory en adelante usan 'category-3'
-  if (obj?.subCategory || obj?.subCategory2 || obj?.subCategory3 || obj?.subCategory4 || obj?.subCategory5) {
-     // Para evitar duplicados en el array, solo empujamos category-3 si alguna subcategoría existe
-     if (!map.includes('category-3')) map.push('category-3');
-  }
+  if (obj?.subCategory) map.push('category-3');
+  if (obj?.subCategory2) map.push('category-4');
+  if (obj?.subCategory3) map.push('category-5');
+  if (obj?.subCategory4) map.push('category-6');
+  if (obj?.subCategory5) map.push('category-7');
 
   // Mapeo para filtros especiales que afectan la ruta
   if (obj?.collection) map.push('productClusterIds');
   if (obj?.brand && !obj.department && !obj.category) map.push('brand'); // Solo si la marca no fue capturada ya en el path
 
-  // Aunque priceRange es un facet, algunos esquemas de VTEX lo incluyen en el map. 
-  // Si tu API lo maneja como facet seleccionado, puede no ser necesario aquí.
-  // if (obj?.priceRange) map.push('priceRange');
-
   return map.join(',');
 };
 
+
 /**
- * Construye el array 'selectedFacets' para filtros específicos que no se mapean en la URL (ej: precio, collection).
- * @param obj Parámetros de entrada de la búsqueda.
- * @returns Un array de objetos { key, value }.
+ * Retorna el valor de orderBy limpio.
+ * @param obj Parámetros de entrada.
+ * @returns El valor de orderBy.
  */
+export const getOrderBy = (obj: SearchInputParams): string => {
+  return obj.orderBy || 'OrderByPriceDESC';
+};
+
 export const getSelectedFacets = (
   obj: SearchInputParams
 ): { key: string; value: string }[] => {
   const selectedFacets: { key: string; value: string }[] = [];
 
-  // Agregar categorías y marca como facets seleccionados (redundancia útil para VTEX)
-  if (obj?.department) selectedFacets.push({ key: 'category-1', value: obj.department });
-  if (obj?.category) selectedFacets.push({ key: 'category-2', value: obj.category });
-  if (obj?.subCategory) selectedFacets.push({ key: 'category-3', value: obj.subCategory });
-  if (obj?.subCategory2) selectedFacets.push({ key: 'category-3', value: obj.subCategory2 });
-  if (obj?.subCategory3) selectedFacets.push({ key: 'category-3', value: obj.subCategory3 });
-  if (obj?.subCategory4) selectedFacets.push({ key: 'category-3', value: obj.subCategory4 });
-  if (obj?.subCategory5) selectedFacets.push({ key: 'category-3', value: obj.subCategory5 });
-              
-  if (obj?.brand) selectedFacets.push({ key: 'brand', value: obj.brand });
-  if (obj?.collection) selectedFacets.push({ key: 'productClusterIds', value: obj.collection });
+  // Logic when selectedFacets is explicitly provided in input
+  if (obj.selectedFacets && Array.isArray(obj.selectedFacets)) {
+      return obj.selectedFacets;
+  }
+
+  // Logic when map is explicitly provided
+  if (obj.map) {
+    const mapSegments = obj.map.split(',');
+    const pathValues = [
+        obj.department,
+        obj.category,
+        obj.subCategory,
+        obj.subCategory2,
+        obj.subCategory3,
+        obj.subCategory4,
+        obj.subCategory5
+    ].filter((v): v is string => !!v);
+
+    pathValues.forEach((val, index) => {
+        if (index < mapSegments.length) {
+            selectedFacets.push({ key: mapSegments[index], value: val });
+        }
+    });
+
+    // Handle extra facets that might not be in the path provided map
+    if (obj?.brand && !mapSegments.includes('brand')) {
+         selectedFacets.push({ key: 'brand', value: obj.brand });
+    }
+    if (obj?.collection && !mapSegments.includes('productClusterIds')) {
+        selectedFacets.push({ key: 'productClusterIds', value: obj.collection });
+    }
+
+  } else {
+      // Proper category hierarchy mapping
+      if (obj?.department) selectedFacets.push({ key: 'category-1', value: obj.department });
+      if (obj?.category) selectedFacets.push({ key: 'category-2', value: obj.category });
+      if (obj?.subCategory) selectedFacets.push({ key: 'category-3', value: obj.subCategory });
+      if (obj?.subCategory2) selectedFacets.push({ key: 'category-4', value: obj.subCategory2 });
+      if (obj?.subCategory3) selectedFacets.push({ key: 'category-5', value: obj.subCategory3 });
+      if (obj?.subCategory4) selectedFacets.push({ key: 'category-6', value: obj.subCategory4 });
+      if (obj?.subCategory5) selectedFacets.push({ key: 'category-7', value: obj.subCategory5 });
+                  
+      if (obj?.brand) selectedFacets.push({ key: 'brand', value: obj.brand });
+      if (obj?.collection) selectedFacets.push({ key: 'productClusterIds', value: obj.collection });
+  }
 
   // Manejo del rango de precio
   if (obj?.priceRange) {

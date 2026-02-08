@@ -37,6 +37,12 @@ interface Services {
   getUserProfileUseCase: ReturnType<
     typeof initializeServices
   >["getUserProfileUseCase"];
+  getUserAddressesUseCase: ReturnType<
+    typeof initializeServices
+  >["getUserAddressesUseCase"];
+  getCartUseCase: ReturnType<
+    typeof initializeServices
+  >["getCartUseCase"];
   // We need access to the provider instance for categories, which is a bit of a hack but fits the current pattern
   // Ideally we would have a getCategoriesUseCase
   provider: any; 
@@ -81,6 +87,7 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
     () => createLoginStore(
         tempServices.loginUseCase, 
         tempServices.getUserProfileUseCase,
+        tempServices.getUserAddressesUseCase, // 👈 New use case
         tempServices.removeAllCartItemsUseCase, // 👈 Pass the use case
         activeProviderName,
         tempServices.provider 
@@ -111,7 +118,8 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
         services.syncCartUseCase,
         services.updateCartItemUseCase,
         services.removeCartItemUseCase,
-        services.removeAllCartItemsUseCase
+        services.removeAllCartItemsUseCase,
+        services.getCartUseCase
       ),
       useCategoryStore: createCategoryStore(services.provider),
       useOrderStore: createOrderStore(services.getOrdersUseCase, services.getOrderDetailUseCase),
@@ -125,12 +133,18 @@ export const StorefrontProvider: React.FC<StorefrontProviderProps> = ({
 
   // 💡 EFFECT: Listen for logout and reset cart
   useEffect(() => {
+      // 1. Listen for logout
       const unsubscribe = useLoginStore.subscribe((state) => {
           if (!state.accessToken) {
               console.log("Logout detected in StorefrontProvider. Resetting CartStore.");
               hooks.useCartStore.getState().reset();
           }
       });
+
+      // 2. Hydrate cart on mount (or whenever provider/services change essentially)
+      console.log("StorefrontProvider mounted. Hydrating cart...");
+      hooks.useCartStore.getState().hydrate();
+
       return () => unsubscribe();
   }, [useLoginStore, hooks]);
 

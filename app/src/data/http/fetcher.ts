@@ -1,3 +1,5 @@
+import CookieManager from '@react-native-cookies/cookies';
+import { Platform } from "react-native";
 import { getAuthToken, getVtexOrderFormId, getVtexSessionCookies } from "../../shared/utils/auth-storage.util";
 
 interface FetcherConfig {
@@ -14,6 +16,59 @@ interface LoginStoreApi {
         revalidateAuth: () => Promise<boolean>;
     };
 }
+
+// 💡 Helpers para CookieManager
+const setCookie = async (url: string, name: string, value: string) => {
+  const expirationDate = new Date();
+  expirationDate.setFullYear(expirationDate.getFullYear() + 5);
+
+  // 💡 Asegurar que usamos solo el origen para la cookie
+  let origin = url;
+  try {
+      const urlObj = new URL(url);
+      // Eliminar todo lo que esté antes de -- (incluyendo el --)
+      // Si no hay --, usamos el hostname tal cual
+      origin = urlObj.hostname.replace(/^.*--/, '');
+  } catch (e) {
+      console.warn("Could not parse URL for cookie, using original:", url);
+  }
+
+  console.log(`🍪 Setting Cookie: ${name} on ${origin}`);
+
+  await CookieManager.set(
+    `https://${origin}`, // CookieManager necesita una URL válida
+    {
+      name: name,
+      value: value,
+      domain: origin, // 💡 Forzamos el dominio limpio
+      path: '/',
+      version: '1',
+      expires: expirationDate.toISOString(),
+      secure: true,
+      httpOnly: true,
+    },
+    true
+  );
+};
+
+const getCookiesNames = async (url: string) => {
+  const cookies = await CookieManager.get(url);
+  const cookieNames = Object.keys(cookies);
+  return cookieNames;
+};
+
+const getWebCookie = async (url: string, name: string) => {
+  const cookies = await getCookiesNames(url);
+  return cookies.find((pred) => pred === name);
+};
+
+const getAndSetCookie = async (url: string, name: string, value: string) => {
+  // 💡 Forzamos el seteo para asegurar que se actualice si cambió
+  // const cookie = await getWebCookie(url, name);
+  // if (!cookie) {
+     await setCookie(url, name, value);
+  // }
+};
 
 // 💡 MODIFICACIÓN: createFetcher ahora acepta loginStoreApi como parámetro OPCIONAL.
 export const createFetcher = (config: FetcherConfig, loginStoreApi?: LoginStoreApi) => {
@@ -62,6 +117,20 @@ export const createFetcher = (config: FetcherConfig, loginStoreApi?: LoginStoreA
         if (segment) {
             cookies.push(`vtex_segment=${segment}`);
         }
+
+        // 💡 Sincronización de cookies nativas para iOS
+        if (Platform.OS === 'ios') {
+            console.log("📱 Syncing cookies for iOS. Segment:", !!segment, "Session:", !!session);
+            if (segment) {
+                await getAndSetCookie(config.baseUrl, "vtex_segment", segment);
+            }
+            if (session) {
+                await getAndSetCookie(config.baseUrl, "vtex_session", session);
+            }
+            if (orderFormId) {
+                await getAndSetCookie(config.baseUrl, "checkout.vtex.com", `__ofid=${orderFormId}`);
+            }
+        }
     }
 
       if (cookies.length > 0) {
@@ -81,7 +150,7 @@ export const createFetcher = (config: FetcherConfig, loginStoreApi?: LoginStoreA
       headers: allHeaders,
     });
     
-    console.log("response.ok ", response);
+    console.log("response.ok ",allHeaders, response);
 
     // 🚨 LÓGICA DE REVALIDACIÓN Y GESTIÓN DE ERRORES 🚨
  

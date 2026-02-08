@@ -115,10 +115,10 @@ export const CustomTabBar = ({ state, descriptors, navigation }: BottomTabBarPro
                 if (route.name === 'profile') iconName = isFocused ? 'person' : 'person-outline';
 
                 let displayLabel = label as string;
-                if (route.name === 'index') displayLabel = 'Home';
-                if (route.name === 'categories') displayLabel = 'Shop';
-                if (route.name === 'cart') displayLabel = 'Cart';
-                if (route.name === 'profile') displayLabel = 'Profile';
+                if (route.name === 'index') displayLabel = 'Inicio';
+                if (route.name === 'categories') displayLabel = 'Tienda';
+                if (route.name === 'cart') displayLabel = 'Carrito';
+                if (route.name === 'profile') displayLabel = 'Perfil';
 
                 return (
                     <TabItem

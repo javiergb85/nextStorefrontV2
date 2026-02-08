@@ -14,6 +14,12 @@ const OrderDetailScreen = () => {
   const insets = useSafeAreaInsets();
   const { selectedOrder, isLoading, error, fetchOrderDetail, clearSelectedOrder } = useStorefront().useOrderStore();
 
+  const isDark = theme === 'dark';
+  const bgColor = isDark ? '#000' : '#f5f5f5';
+  const cardBg = isDark ? '#111' : '#fff';
+  const textColor = isDark ? '#fff' : '#000';
+  const secondaryText = isDark ? '#aaa' : '#6b7280';
+
   useEffect(() => {
     if (orderId) {
       fetchOrderDetail(orderId);
@@ -33,10 +39,10 @@ const OrderDetailScreen = () => {
 
   if (error) {
     return (
-      <View style={[styles.loadingContainer, { paddingTop: insets.top }]}>
+      <View style={[styles.loadingContainer, { paddingTop: insets.top, backgroundColor: isDark ? '#000' : '#f5f5f5' }]}>
         <Text style={{ color: 'red' }}>{error}</Text>
         <TouchableOpacity onPress={() => orderId && fetchOrderDetail(orderId)}>
-          <Text style={{ color: '#000', marginTop: 10 }}>Retry</Text>
+          <Text style={{ color: isDark ? '#FFF' : '#000', marginTop: 10 }}>Reintentar</Text>
         </TouchableOpacity>
       </View>
     );
@@ -48,14 +54,25 @@ const OrderDetailScreen = () => {
 
   const formatPrice = (value: number) => (value / 100).toFixed(2);
 
+  const getCardIcon = (paymentSystemName: string | undefined) => {
+    const name = paymentSystemName?.toLowerCase() || '';
+    if (name.includes('visa')) return <FontAwesome5 name="cc-visa" size={24} color="#1a1f71" />;
+    if (name.includes('mastercard')) return <FontAwesome5 name="cc-mastercard" size={24} color="#eb001b" />;
+    if (name.includes('amex') || name.includes('american express')) return <FontAwesome5 name="cc-amex" size={24} color="#006fcf" />;
+    return <FontAwesome5 name="credit-card" size={24} color="#333" />;
+  };
+
+  const paymentName = selectedOrder?.paymentData?.transactions?.[0]?.payments?.[0]?.paymentSystemName || 'Tarjeta';
+  const lastDigits = selectedOrder?.paymentData?.transactions?.[0]?.payments?.[0]?.lastDigits || '****';
+
   return (
-    <View style={[styles.mainContainer, { paddingTop: insets.top }]}>
+    <View style={[styles.mainContainer, { paddingTop: insets.top, backgroundColor: bgColor }]}>
       <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         
         {/* Header with Back Button */}
         <View style={styles.navHeader}>
-             <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-                <Ionicons name="arrow-back" size={24} color="#000" />
+             <TouchableOpacity onPress={() => router.back()} style={[styles.backButton, { backgroundColor: cardBg }]}>
+                <Ionicons name="arrow-back" size={24} color={textColor} />
              </TouchableOpacity>
         </View>
 
@@ -67,26 +84,26 @@ const OrderDetailScreen = () => {
             </View>
 
             {/* Invoice Card */}
-            <View style={styles.invoice}>
+            <View style={[styles.invoice, { backgroundColor: cardBg }]}>
               {/* Gradient Overlay */}
               <LinearGradient
-                colors={['rgba(0,0,0,0.8)', 'rgba(0,0,0,0.1)', 'transparent']}
+                colors={isDark ? ['rgba(255,255,255,0.1)', 'transparent'] : ['rgba(0,0,0,0.8)', 'rgba(0,0,0,0.1)', 'transparent']}
                 style={styles.invoiceGradient}
               />
 
               {/* Title */}
               <View style={styles.titleContainer}>
-                <View style={styles.dashedLine} />
-                <Text style={styles.title}>Order Invoice &mdash; {selectedOrder.orderId?.slice(0, 8)}...</Text>
-                <View style={styles.dashedLine} />
+                <View style={[styles.dashedLine, { borderColor: textColor }]} />
+                <Text style={[styles.title, { color: textColor }]}>Factura del Pedido &mdash; {selectedOrder.orderId?.slice(0, 8)}...</Text>
+                <View style={[styles.dashedLine, { borderColor: textColor }]} />
               </View>
 
               {/* Amounts */}
               <View style={styles.amountRow}>
-                <Text style={styles.amountLabel}>Total <Text style={styles.amountValue}>${formatPrice(selectedOrder.value)}</Text></Text>
+                <Text style={[styles.amountLabel, { color: secondaryText }]}>Total <Text style={[styles.amountValue, { color: textColor }]}>${formatPrice(selectedOrder.value)}</Text></Text>
               </View>
               <View style={styles.amountRow}>
-                <Text style={styles.amountLabel}>Items <Text style={styles.amountValue}>{selectedOrder.items.length}</Text></Text>
+                <Text style={[styles.amountLabel, { color: secondaryText }]}>Productos <Text style={[styles.amountValue, { color: textColor }]}>{selectedOrder.items.length}</Text></Text>
               </View>
 
               <View style={styles.divider} />
@@ -94,15 +111,15 @@ const OrderDetailScreen = () => {
               {/* Items List */}
               <View style={styles.itemsList}>
                 {selectedOrder.items.map((item: any, index: number) => (
-                  <View key={item.id || index} style={styles.itemRow}>
-                    <View style={styles.itemImageContainer}>
+                  <View key={item.id || index} style={[styles.itemRow, { borderBottomColor: isDark ? '#222' : '#eee' }]}>
+                    <View style={[styles.itemImageContainer, { borderRightColor: isDark ? '#222' : '#eee' }]}>
                       <Image source={{ uri: item.imageUrl }} style={styles.itemImage} />
                     </View>
                     <View style={styles.itemInfo}>
-                      <Text style={styles.itemName} numberOfLines={1}>{item.name}</Text>
-                      <View style={styles.itemTag}>
+                      <Text style={[styles.itemName, { color: textColor }]} numberOfLines={1}>{item.name}</Text>
+                      <View style={[styles.itemTag, { borderColor: isDark ? '#333' : '#ddd' }]}>
                         <FontAwesome5 name="check-circle" size={12} color="#22c55e" style={{ marginRight: 4 }} />
-                        <Text style={styles.itemTagText}>${formatPrice(item.price)} x {item.quantity}</Text>
+                        <Text style={[styles.itemTagText, { color: textColor }]}>${formatPrice(item.price)} x {item.quantity}</Text>
                       </View>
                     </View>
                   </View>
@@ -110,61 +127,66 @@ const OrderDetailScreen = () => {
               </View>
 
               {/* Order Status */}
-              <View style={styles.paymentStatus}>
+              <View style={[styles.paymentStatus, { borderColor: isDark ? '#333' : '#ddd' }]}>
                 <View style={styles.statusHeadingRow}>
-                  <Text style={styles.statusHeading}>Order Status</Text>
-                  <Text style={styles.statusValue}>{selectedOrder.statusDescription}</Text>
+                  <Text style={[styles.statusHeading, { color: secondaryText }]}>Estado del Pedido</Text>
+                  <Text style={[styles.statusValue, { color: textColor }]}>{selectedOrder.statusDescription}</Text>
                 </View>
                 
-                <View style={styles.statusProgress}>
+                <View style={[styles.statusProgress, { backgroundColor: isDark ? '#222' : '#eee' }]}>
                   {/* Simulated Progress Bar */}
-                  <View style={styles.checkpoint}>
-                    <FontAwesome5 name="check-circle" size={14} color="#000" />
+                  <View style={[styles.checkpoint, { backgroundColor: cardBg, borderColor: isDark ? '#333' : '#eee' }]}>
+                    <FontAwesome5 name="check-circle" size={14} color={textColor} />
                   </View>
-                  <View style={[styles.checkpoint, { left: '25%' }]}>
-                    <FontAwesome5 name="check-circle" size={14} color="#000" />
+                  <View style={[styles.checkpoint, { left: '25%', backgroundColor: cardBg, borderColor: isDark ? '#333' : '#eee' }]}>
+                    <FontAwesome5 name="check-circle" size={14} color={textColor} />
                   </View>
-                   <View style={[styles.checkpoint, { left: '50%' }]}>
-                    <FontAwesome5 name="check-circle" size={14} color="#000" />
+                   <View style={[styles.checkpoint, { left: '50%', backgroundColor: cardBg, borderColor: isDark ? '#333' : '#eee' }]}>
+                    <FontAwesome5 name="check-circle" size={14} color={textColor} />
                   </View>
-                   <View style={[styles.checkpoint, { left: '75%' }]}>
-                    <View style={styles.circle} />
+                   <View style={[styles.checkpoint, { left: '75%', backgroundColor: cardBg, borderColor: isDark ? '#333' : '#eee' }]}>
+                    <View style={[styles.circle, { backgroundColor: textColor }]} />
                   </View>
-                   <View style={[styles.checkpoint, { right: 0 }]}>
-                    <FontAwesome5 name="stamp" size={14} color="#000" />
+                   <View style={[styles.checkpoint, { right: 0, backgroundColor: cardBg, borderColor: isDark ? '#333' : '#eee' }]}>
+                    <FontAwesome5 name="stamp" size={14} color={textColor} />
                   </View>
                 </View>
               </View>
 
               {/* Buttons */}
               <View style={styles.btnGroup}>
-                <TouchableOpacity style={[styles.btn, styles.reminderBtn]}>
-                  <Text style={styles.btnTextWhite}>Track Order</Text>
+                <TouchableOpacity style={[styles.btn, styles.reminderBtn, { backgroundColor: isDark ? '#fff' : '#111827', borderColor: isDark ? '#fff' : '#1b1b1b' }]}>
+                  <Text style={[styles.btnTextWhite, { color: isDark ? '#000' : '#fff' }]}>Rastrear Pedido</Text>
                 </TouchableOpacity>
-                <TouchableOpacity style={[styles.btn, styles.downloadBtn]}>
-                  <Text style={styles.btnTextBlack}>Download Invoice</Text>
+                <TouchableOpacity style={[styles.btn, styles.downloadBtn, { backgroundColor: isDark ? '#111' : '#fff', borderColor: isDark ? '#333' : '#eee' }]}>
+                  <Text style={[styles.btnTextBlack, { color: textColor }]}>Descargar Factura</Text>
                 </TouchableOpacity>
               </View>
             </View>
           </View>
 
           <View style={styles.divider} />
+        </View>
+      </ScrollView>
 
+      {/* Sticky Footer */}
+      <View style={[styles.stickyFooter, { backgroundColor: cardBg, borderColor: isDark ? '#222' : '#eee', paddingBottom: insets.bottom + 20 }]}>
           {/* Payment Info */}
           <View style={styles.paymentInfo}>
-            <Text style={styles.paymentLabel}>Payment Method</Text>
+            <Text style={[styles.paymentLabel, { color: secondaryText }]}>Método de Pago</Text>
             <View style={styles.cardInfo}>
-              <Text style={styles.cardText}>Visa Ending ****</Text>
-              <View style={styles.cardIcon} />
+              <Text style={[styles.cardText, { color: textColor }]}>{paymentName} **** {lastDigits}</Text>
+              <View style={styles.cardIcon}>
+                 {getCardIcon(paymentName)}
+              </View>
             </View>
           </View>
 
           {/* Footer Button */}
-          <TouchableOpacity style={styles.payNowBtn}>
-            <Text style={styles.payNowText}>Reorder Items</Text>
+          <TouchableOpacity style={[styles.payNowBtn, { backgroundColor: isDark ? '#fff' : '#111827', borderColor: isDark ? '#fff' : '#1b1b1b' }]}>
+            <Text style={[styles.payNowText, { color: isDark ? '#000' : '#fff' }]}>Pedir de nuevo</Text>
           </TouchableOpacity>
-        </View>
-      </ScrollView>
+      </View>
     </View>
   );
 };
@@ -181,7 +203,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#f5f5f5',
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 160,
   },
   navHeader: {
       paddingHorizontal: 20,
@@ -469,8 +491,10 @@ const styles = StyleSheet.create({
   cardIcon: {
     width: 35,
     height: 26,
-    backgroundColor: '#1a43bf',
+    // backgroundColor: '#1a43bf', // Removed background color
     borderRadius: 5,
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   payNowBtn: {
     backgroundColor: '#111827',
@@ -490,6 +514,22 @@ const styles = StyleSheet.create({
     color: '#fff',
     fontSize: 18,
     fontWeight: '600',
+  },
+  stickyFooter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    backgroundColor: '#fff',
+    paddingHorizontal: 20,
+    paddingTop: 20,
+    borderTopWidth: 1,
+    borderTopColor: '#eee',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -5 },
+    shadowOpacity: 0.1,
+    shadowRadius: 10,
+    elevation: 20,
   },
 });
 

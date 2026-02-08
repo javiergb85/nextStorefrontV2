@@ -59,7 +59,7 @@ const SearchInput = () => {
         <TouchableWithoutFeedback onPress={() => setIsOverlayVisible(true)}>
             <View style={themeStyles.inputContainer}>
                 <Ionicons name="search-outline" size={20} color={themeStyles.iconColor.color} />
-                <Text style={themeStyles.placeholderText}>Search for products...</Text>
+                <Text style={themeStyles.placeholderText}>Buscar productos...</Text>
             </View>
         </TouchableWithoutFeedback>
       </View>

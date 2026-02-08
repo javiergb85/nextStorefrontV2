@@ -129,3 +129,19 @@ export const getVtexSessionCookies = async () => {
     const segment = await SecureStore.getItemAsync(VTEX_SEGMENT_KEY);
     return { session, segment };
 };
+
+export const isTokenExpired = (token: string): boolean => {
+    try {
+        const parts = token.split('.');
+        if (parts.length !== 3) return true;
+
+        const payload = JSON.parse(atob(parts[1]));
+        if (!payload.exp) return false; // No expiration, assume valid
+
+        const currentTime = Math.floor(Date.now() / 1000);
+        return payload.exp < currentTime;
+    } catch (e) {
+        console.error("Error checking token expiration:", e);
+        return true; // Assume expired on error
+    }
+};

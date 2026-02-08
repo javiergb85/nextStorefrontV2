@@ -3,24 +3,26 @@ import { VtexProvider } from './vtex/vtex.provider';
 // La interfaz del proveedor base, que tanto ShopifyProvider como VtexProvider implementan.
 // Esto garantiza que ambos tienen un método de login.
 import { Product } from '../../domain/entities/product';
+import { SearchResult } from '../../domain/entities/search-result';
 import { AuthRepository } from '../../domain/repositories/auth.repository';
 import { CartItemInput, EcommerceRepository } from '../../domain/repositories/ecommerce.repository';
 import { Cart } from './vtex/vtex.types/vtex.cart.types';
 import { ProductFetchInput } from './vtex/vtex.types/vtex.products.types';
 
 
-export interface Provider extends AuthRepository {
-  fetchProducts(input: ProductFetchInput | any): Promise<Product[]>;
+export interface Provider {
+  fetchProducts(input: ProductFetchInput): Promise<SearchResult>;
   fetchProduct(slug: string): Promise<Product | null>;
   addToCart(productId: string, quantity: number): Promise<boolean>;
   placeOrder(): Promise<boolean>;
   syncCart(items: CartItemInput[]): Promise<Cart>;
   updateCartItems(items: { itemIndex: number; quantity: number; id: string; uniqueId: string; seller: string; }[]): Promise<{ success: boolean; quantity: number; }>;
-  updateCartItems(items: { itemIndex: number; quantity: number; id: string; uniqueId: string; seller: string; }[]): Promise<{ success: boolean; quantity: number; }>;
   removeAllCartItems(): Promise<Cart>;
   getUserProfile(email: string): Promise<any>;
   listOrders(email: string): Promise<any>;
+  listOrders(email: string): Promise<any>;
   getOrder(orderId: string): Promise<any>;
+  getCart(): Promise<Cart>;
 }
 
 // Define el tipo de la configuración

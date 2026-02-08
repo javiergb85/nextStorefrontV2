@@ -1,6 +1,8 @@
 import { ProductFetchInput } from '../../data/providers/vtex/vtex.types/vtex.products.types';
 import { Either } from '../../shared/utils/either';
+import { Cart } from '../entities/cart';
 import { Product } from '../entities/product';
+import { SearchResult } from '../entities/search-result';
 
 export interface CartItemInput {
   uniqueId?: string;
@@ -10,7 +12,7 @@ export interface CartItemInput {
 }
 
 export interface EcommerceRepository {
-  getProducts(input: ProductFetchInput | any): Promise<Either<Error, Product[]>>;
+  getProducts(input: ProductFetchInput | any): Promise<Either<Error, SearchResult>>;
   getProductDetail(productId: string,prefetchKey?: string, isPrefetchAction?:boolean ): Promise<Either<Error, Product>>; 
   addToCart(productId: string, quantity: number): Promise<Either<Error, any>>;
   syncCart(items: CartItemInput[]): Promise<any>;
@@ -19,4 +21,5 @@ export interface EcommerceRepository {
   placeOrder(): Promise<Either<Error, boolean>>; 
   listOrders(email: string): Promise<Either<Error, any>>;
   getOrder(orderId: string): Promise<Either<Error, any>>;
+  getCart(): Promise<Either<Error, Cart>>;
 }

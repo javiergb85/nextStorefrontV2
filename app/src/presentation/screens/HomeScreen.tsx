@@ -3,20 +3,19 @@ import { useRouter } from 'expo-router';
 import React from 'react';
 import {
     Dimensions,
-    Image,
     ScrollView,
     StyleSheet,
     Text,
     TouchableOpacity,
-    View,
+    View
 } from 'react-native';
-import Animated, { FadeInDown } from 'react-native-reanimated';
+import Animated from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { useStorefront } from '../../context/storefront.context';
 import { useTheme } from '../../context/theme.context';
-import { CartBadge } from '../components/CartBadge';
-import CategoryRibbon from '../components/CategoryRibbon';
-import PromotionalSlider from '../components/PromotionalSlider';
+import { CMSRepositoryImpl } from '../../data/repositories/cms.repository.impl';
+import { HomeLayout } from '../../domain/entities/home-layout';
+import { GetHomeLayoutUseCase } from '../../domain/use-cases/get-home-layout.use-case';
+import HomeSectionRenderer from '../components/HomeSectionRenderer';
 import SearchInput from '../components/SearchInput';
 
 const { width } = Dimensions.get('window');
@@ -27,20 +26,28 @@ const HomeScreen = () => {
     const router = useRouter();
     const { theme, toggleTheme } = useTheme();
     const insets = useSafeAreaInsets();
-    const { useLoginStore } = useStorefront();
-    const { logout } = useLoginStore();
+
     const isDark = theme === 'dark';
+    
+    // State for HomeLayout
+    const [layout, setLayout] = React.useState<HomeLayout | null>(null);
 
     const textColor = isDark ? '#FFFFFF' : '#000000';
     const bgColor = isDark ? '#000000' : '#FFFFFF';
     const secondaryText = isDark ? '#AAAAAA' : '#666666';
 
-    const featuredProducts = [
-        { id: '1', name: 'OVERSIZED BLAZER', price: 129, image: 'https://images.unsplash.com/photo-1551028919-ac7675ef0c62?w=800&q=80' },
-        { id: '2', name: 'LEATHER BOOTS', price: 189, image: 'https://images.unsplash.com/photo-1549298916-b41d501d3772?w=800&q=80' },
-        { id: '3', name: 'WOOL COAT', price: 299, image: 'https://images.unsplash.com/photo-1539533018447-63fcce2678e3?w=800&q=80' },
-        { id: '4', name: 'SILK SCARF', price: 49, image: 'https://images.unsplash.com/photo-1584030373081-f37b7bb4fa8e?w=800&q=80' },
-    ];
+    React.useEffect(() => {
+        const fetchLayout = async () => {
+             // In a real app we'd use DI container to get the repo
+            const repo = new CMSRepositoryImpl();
+            const useCase = new GetHomeLayoutUseCase(repo);
+            const data = await useCase.execute();
+            setLayout(data);
+        };
+
+        fetchLayout();
+    }, []);
+
 
     return (
         <View style={[styles.container, { backgroundColor: bgColor }]}>
@@ -60,54 +67,22 @@ const HomeScreen = () => {
                                     color={textColor} 
                                 />
                             </TouchableOpacity>
-                            <TouchableOpacity onPress={() => router.push('/(tabs)/cart')}>
-                                <View>
-                                    <Ionicons 
-                                        name="cart-outline" 
-                                        size={24} 
-                                        color={textColor} 
-                                    />
-                                    <CartBadge style={{ top: -5, right: -8 }} />
-                                </View>
-                            </TouchableOpacity>
-                            <TouchableOpacity onPress={logout}>
-                                <Ionicons 
-                                    name="log-out-outline" 
-                                    size={24} 
-                                    color={textColor} 
-                                />
-                            </TouchableOpacity>
+
                         </View>
                     </View>
                     <SearchInput />
                 </View>
 
-                {/* New Promotional Slider */}
-                <PromotionalSlider />
+                {/* Dynamic Sections */}
+                {layout?.sections.map((section, index) => (
+                    <HomeSectionRenderer 
+                        key={index} 
+                        section={section} 
+                        textColor={textColor}
+                        secondaryText={secondaryText}
+                    />
+                ))}
 
-                {/* New Category Ribbon */}
-                <CategoryRibbon />
-
-                {/* Featured */}
-                <View style={styles.section}>
-                    <Text style={[styles.sectionTitle, { color: textColor }]}>TRENDING NOW</Text>
-                    <View style={styles.featuredGrid}>
-                        {featuredProducts.map((product, index) => (
-                            <AnimatedTouchable
-                                key={product.id}
-                                entering={FadeInDown.delay(400 + index * 100).duration(600)}
-                                style={styles.productCard}
-                                onPress={() => router.push('/product/detail')}
-                            >
-                                <Image source={{ uri: product.image }} style={styles.productImage} />
-                                <View style={styles.productInfo}>
-                                    <Text style={[styles.productName, { color: textColor }]}>{product.name}</Text>
-                                    <Text style={[styles.productPrice, { color: secondaryText }]}>{product.price}</Text>
-                                </View>
-                            </AnimatedTouchable>
-                        ))}
-                    </View>
-                </View>
             </ScrollView>
         </View>
     );

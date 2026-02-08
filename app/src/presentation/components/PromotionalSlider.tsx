@@ -1,39 +1,17 @@
+import { useRouter } from 'expo-router';
 import React, { useRef, useState } from 'react';
 import { Dimensions, FlatList, Image, NativeScrollEvent, NativeSyntheticEvent, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
 const { width } = Dimensions.get('window');
 
-const PROMOTIONS = [
-  {
-    id: '1',
-    title: 'Minimalist\nCollection',
-    subtitle: 'Up to 40% off',
-    buttonText: 'Shop Now',
-    image: 'https://images.unsplash.com/photo-1515886657613-9f3515b0c78f?w=800&q=80',
-    backgroundColor: '#F5F5F5', // Light Grey
-    textColor: '#000',
-  },
-  {
-    id: '2',
-    title: 'Summer\nEssentials',
-    subtitle: 'New Arrivals',
-    buttonText: 'Discover',
-    image: 'https://images.unsplash.com/photo-1483985988355-763728e1935b?w=800&q=80',
-    backgroundColor: '#1A1A1A', // Dark Grey
-    textColor: '#FFF',
-  },
-  {
-    id: '3',
-    title: 'Modern\nAccessories',
-    subtitle: 'Limited Edition',
-    buttonText: 'Explore',
-    image: 'https://images.unsplash.com/photo-1516035069371-29a1b244cc32?w=800&q=80',
-    backgroundColor: '#E0E0E0', 
-    textColor: '#000',
-  },
-];
+import { BannerItem } from '../../domain/entities/home-layout';
 
-const PromotionalSlider = () => {
+interface PromotionalSliderProps {
+    items: BannerItem[];
+}
+
+const PromotionalSlider = ({ items }: PromotionalSliderProps) => {
+  const router = useRouter();
   const [activeIndex, setActiveIndex] = useState(0);
   const flatListRef = useRef<FlatList>(null);
 
@@ -43,12 +21,15 @@ const PromotionalSlider = () => {
     setActiveIndex(index);
   };
 
-  const renderItem = ({ item }: { item: typeof PROMOTIONS[0] }) => (
+  const renderItem = ({ item }: { item: BannerItem }) => (
     <View style={[styles.card, { backgroundColor: item.backgroundColor }]}>
       <View style={styles.contentContainer}>
         <Text style={[styles.subtitle, { color: item.textColor }]}>{item.subtitle}</Text>
         <Text style={[styles.title, { color: item.textColor }]}>{item.title}</Text>
-        <TouchableOpacity style={[styles.button, { borderColor: item.textColor }]}>
+        <TouchableOpacity 
+          style={[styles.button, { borderColor: item.textColor }]}
+          onPress={() => item.link ? router.push(`/(tabs)${item.link}`) : console.log('Shop Now Pressed')}
+        >
           <Text style={[styles.buttonText, { color: item.textColor }]}>{item.buttonText}</Text>
         </TouchableOpacity>
       </View>
@@ -60,7 +41,7 @@ const PromotionalSlider = () => {
     <View style={styles.container}>
       <FlatList
         ref={flatListRef}
-        data={PROMOTIONS}
+        data={items}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         horizontal
@@ -75,7 +56,7 @@ const PromotionalSlider = () => {
       
       {/* Pagination Dots */}
       <View style={styles.pagination}>
-        {PROMOTIONS.map((_, index) => (
+        {items.map((_, index) => (
           <View
             key={index}
             style={[

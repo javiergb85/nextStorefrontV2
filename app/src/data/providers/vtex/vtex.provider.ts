@@ -3,6 +3,7 @@
 import { AuthRepository } from "@/app/src/domain/repositories/auth.repository";
 import { getVtexOrderFormId, getVtexSessionCookies, saveVtexAuthCookies, saveVtexOrderFormId, saveVtexSessionCookies } from "@/app/src/shared/utils/auth-storage.util";
 import { Product as DomainProduct } from "../../../domain/entities/product";
+import { SearchResult } from "../../../domain/entities/search-result";
 import { createFetcher } from "../../http/fetcher";
 import {
   PRODUCT_DETAIL_QUERY,
@@ -78,15 +79,16 @@ export class VtexProvider implements AuthRepository {
   // (El código de login, fetchProducts, etc. no necesita cambios
   // porque usa this.apiCall, y el manejo del 401 está ahora en el fetcher.)
 
-  async fetchProducts(input: ProductFetchInput = {}): Promise<DomainProduct[]> {
-    // ... (Tu implementación de fetchProducts)
-    // ...
+  async fetchProducts(input: ProductFetchInput = {}): Promise<SearchResult> {
+    console.log("VTEX Provider: fetchProducts input:", JSON.stringify(input, null, 2));
 
      const defaultVariables = {
-          query: input.query,
-          queryFacets: input.query,
+          // If we have selectedFacets, query and map can be simplified/omitted
+          // as selectedFacets provide the exact filters.
+          query: input.selectedFacets?.length ? undefined : input.query,
+          queryFacets: input.query, // Always pass query for facets computation
           fullText: input.fullText,
-          map: input.map,
+          map: input.selectedFacets?.length ? undefined : input.map,
           selectedFacets: input.selectedFacets || [],
           orderBy: input.orderBy,
           // Rango de precio por defecto (de 0 al máximo, si no se proporciona)
@@ -99,6 +101,9 @@ export class VtexProvider implements AuthRepository {
           installmentCriteria: 'MAX_WITHOUT_INTEREST',
           collection: input.collection,
       };
+
+    console.log("VTEX Provider: GraphQL Variables:", JSON.stringify(defaultVariables, null, 2));
+
     const response: VtexProducts = await this.apiCall(undefined, {
       method: "POST",
       body: JSON.stringify({
@@ -108,9 +113,28 @@ export class VtexProvider implements AuthRepository {
     });
 
     const rawProducts = response.data.productSearch.products;
+    const products = rawProducts.map(mapVtexProductToDomain);
+    const facets = response.data.facets.facets.map(facet => ({
+      name: facet.name,
+      values: facet.values.map(val => ({
+        id: val.id,
+        name: val.name,
+        key: val.key,
+        value: val.value,
+        quantity: val.quantity,
+        selected: val.selected,
+        href: val.href,
+        range: val.range
+      }))
+    }));
 
-    return rawProducts.map(mapVtexProductToDomain);
-    // ...
+    console.log(`VTEX Provider: Found ${products.length} products. RecordsFiltered: ${response.data.productSearch.recordsFiltered}`);
+
+    return {
+      products,
+      facets,
+      totalCount: response.data.productSearch.recordsFiltered,
+    };
   }
 
   async fetchProduct(slug: string,  
@@ -289,36 +313,56 @@ export class VtexProvider implements AuthRepository {
       throw new Error("No OrderForm ID found. Cannot sync cart.");
     }
 
-    const url = `${this.storeUrl}/api/checkout/pub/orderForm/${orderFormId}/items`;
+    // 1. Clasificar items en "para agregar" y "para actualizar"
+    const itemsToAdd = items.filter(item => !item.uniqueId || item.uniqueId.startsWith('temp-'));
+    const itemsToUpdate = items.filter(item => item.uniqueId && !item.uniqueId.startsWith('temp-'));
 
-    // El cuerpo de la petición REEMPLAZA todos los items del carrito con esta nueva lista.
-    // Es perfecto para nuestro patrón de sincronización.
-    const body = {
-      orderItems: items.map(item => ({
-        id: item.id,
-        quantity: item.quantity,
-        seller: item.seller ?? '1',
-        uniqueId: item.uniqueId, // Se añade el uniqueId si está presente
-      })),
-    };
+    console.log(`SyncCart: ${itemsToAdd.length} items to add, ${itemsToUpdate.length} items to update.`);
 
-  
-  
-
-    console.log("body",url, body)
     try {
-      const updatedOrderForm: VtexOrderForm = await this.apiCall(url, {
-        method: 'POST',
-        body: JSON.stringify(body),
-        headers: {
-          'Accept': 'application/json',
-          'Content-Type': 'application/json',
-        }
-      });
+      // 2. Procesar AGREGAR items (si los hay)
+      if (itemsToAdd.length > 0) {
+        console.log("Adding new items to cart...", itemsToAdd);
+        
+        const url = `${this.storeUrl}/api/checkout/pub/orderForm/${orderFormId}/items`;
+        
+        const body = {
+          orderItems: itemsToAdd.map(item => ({
+            id: item.id, // SKU ID es necesario para agregar
+            quantity: item.quantity,
+            seller: item.seller || '1',
+          }))
+        };
 
-      console.log('Cart synced successfully with VTEX.');
-      // ✨ CAMBIO CLAVE: Mapeamos la respuesta antes de devolverla.
-      return mapVtexOrderFormToCart(updatedOrderForm);
+        await this.apiCall(url, {
+            method: 'POST',
+            body: JSON.stringify(body),
+             headers: {
+                'Content-Type': 'application/json',
+                'Accept': 'application/json'
+            }
+        });
+        console.log("Items added successfully.");
+      }
+
+      // 3. Procesar ACTUALIZAR items (si los hay)
+      if (itemsToUpdate.length > 0) {
+        console.log("Updating existing items...", itemsToUpdate);
+        await this.updateCartItems(itemsToUpdate.map(item => ({
+             // Adaptamos la estructura para reutilizar updateCartItems
+             itemIndex: 0, 
+             quantity: item.quantity,
+             id: item.id,
+             uniqueId: item.uniqueId!,
+             seller: item.seller || '1'
+        })));
+        console.log("Items updated successfully.");
+      }
+
+      // 4. Obtener el estado final y devolverlo
+      console.log("Fetching final cart state...");
+      const finalOrderForm = await this.getOrderForm();
+      return mapVtexOrderFormToCart(finalOrderForm);
 
     } catch (error) {
       console.error('Failed to sync cart with VTEX:', error);
@@ -343,8 +387,8 @@ export class VtexProvider implements AuthRepository {
         quantity: String(item.quantity),
       }))
     };
-
-console.log("variables", variables)
+ 
+console.log("variables>>>>", variables)
     try {
       // Usamos apiCall, pero apuntando a la URL de GraphQL
       const response: { data: { updateItems: VtexOrderForm } } = await this.apiCall(url, {
@@ -415,6 +459,12 @@ console.log("variables", variables)
 
 
 
+
+  async getCart(): Promise<Cart> {
+    const orderForm = await this.getOrderForm();
+    return mapVtexOrderFormToCart(orderForm);
+  }
+
   public async getOrderForm(orderFormId?: string): Promise<VtexOrderForm> {
     const ACCOUNT = this.accountName;
     if (!ACCOUNT) {
@@ -475,32 +525,39 @@ console.log("variables", variables)
         const orderForm = await this.getOrderForm();
         console.log("orderForm.clientProfileData:", orderForm.clientProfileData);
         
-        if (orderForm.clientProfileData && orderForm.clientProfileData.email === email) {
-            console.log("Returning profile from OrderForm");
+        const userProfileId = orderForm.userProfileId;
+        console.log("orderForm.userProfileId:", userProfileId);
+
+        if (orderForm.clientProfileData && orderForm.clientProfileData.email === email && userProfileId) {
+            console.log("Returning profile from OrderForm with ID:", userProfileId);
             return {
+                id: userProfileId,
                 firstName: orderForm.clientProfileData.firstName,
                 lastName: orderForm.clientProfileData.lastName,
                 email: orderForm.clientProfileData.email,
                 phone: orderForm.clientProfileData.phone,
                 document: orderForm.clientProfileData.document,
             };
+        } else {
+             console.log("OrderForm skipped. matchedEmail:", orderForm.clientProfileData?.email === email, "hasId:", !!userProfileId);
         }
         
         // Si no está en el orderForm (ej. login fresco sin checkout), intentamos Master Data
         // URL: /api/dataentities/CL/search?_fields=firstName,lastName,email,phone,document&_where=email={email}
         // Esto suele estar bloqueado para acceso público anónimo, pero con cookie de usuario logueado podría funcionar.
         
-        const searchUrl = `${this.storeUrl}/api/dataentities/CL/search?_fields=firstName,lastName,email,phone,document&_where=email=${email}`;
+        const searchUrl = `${this.storeUrl}/api/dataentities/CL/search?_fields=id,firstName,lastName,email,phone,document&_where=email=${email}`;
         const response = await this.apiCall(searchUrl, {
             method: 'GET',
             headers: {
                 'REST-Range': 'resources=0-1',
-                'X-VTEX-API-AppKey': 'vtexappkey-hanesar-GSTCPT',
-                'X-VTEX-API-AppToken': 'NMPSJOZUDGSFJYUJWAIQELCWCWYLVVNBDVAJZRUXNTQQMJHOHNGHSDYYNDAEIHYCJTZCMJQJNZSHITLRYCLHKPCYYCWFFFIRKRTKWAKGVOBTSKJQYZLSWQTUPKWUKLHG'
+                'X-VTEX-API-AppKey': /* TODO: API KEY */"",
+                'X-VTEX-API-AppToken': /* TODO: API TOKEN */""
             }
         });
-        console.log("response getUserProfile", response)
+        console.log("response getUserProfile (CL)", response);
         if (Array.isArray(response) && response.length > 0) {
+            console.log("Returning profile from MasterData (CL):", response[0]);
             return response[0];
         }
         
@@ -512,6 +569,117 @@ console.log("variables", variables)
         throw error;
     }
   }
+
+
+    async getUserAddresses(email: string, userId?: string): Promise<any[]> {
+        try {
+            console.log("getUserAddresses called for:", email, "userId:", userId);
+            
+            // 1. Si tenemos un userId explicito, probamos primero con ese (es más rápido)
+            if (userId) {
+                 console.log("Debug: Trying with provided userId:", userId);
+                 const adUrl = `${this.storeUrl}/api/dataentities/AD/search?_where=userId=${encodeURIComponent(userId)}&_fields=_all`;
+                 try {
+                     const response = await this.apiCall(adUrl, {
+                        method: 'GET',
+                        headers: {
+                            'REST-Range': 'resources=0-100',
+                              'X-VTEX-API-AppKey': /* TODO: API KEY */"",
+                'X-VTEX-API-AppToken': /* TODO: API TOKEN */""
+                        }
+                    });
+                    if (Array.isArray(response) && response.length > 0) {
+                        console.log(`Debug: Found addresses with provided userId.`);
+                        return response;
+                    }
+                    console.log("Debug: No addresses found with provided userId. Falling back to CL lookup.");
+                 } catch (e) {
+                     console.warn("Debug: Error searching with provided userId, continuing to fallback.", e);
+                 }
+            }
+
+            // 2. Si falló lo anterior o no teníamos userId, buscamos en CL por email
+            console.log("Debug: Searching in CL by email for canonical IDs...");
+            try {
+                // Buscamos id (Document ID) y userId (Login ID) en CL
+                const clUrl = `${this.storeUrl}/api/dataentities/CL/search?_fields=id,userId&_where=email=${encodeURIComponent(email)}`;
+                
+                const clResponse = await this.apiCall(clUrl, {
+                    method: 'GET',
+                    headers: {
+                        'REST-Range': 'resources=0-1',
+                        'X-VTEX-API-AppKey': /* TODO: API KEY */"",
+                        'X-VTEX-API-AppToken': /* TODO: API TOKEN */""
+                    }
+                });
+
+                console.log("Debug: CL Search Response:", JSON.stringify(clResponse));
+
+                if (!Array.isArray(clResponse) || clResponse.length === 0) {
+                    console.warn("User not found in CL, cannot fetch addresses.");
+                    return [];
+                }
+                
+                const documentId = clResponse[0].id;
+                const loginId = clResponse[0].userId; 
+                
+                console.log(`Debug: Found CL User. DocumentId: ${documentId}, LoginId: ${loginId}`);
+
+                // 2a. Intentamos con Document ID (común para registros creados en checkout)
+                if (documentId && documentId !== userId) { // Evitamos repetir si ya lo probamos
+                     console.log("Debug: Fetching addresses for DocumentId:", documentId);
+                     const adUrl = `${this.storeUrl}/api/dataentities/AD/search?_where=userId=${encodeURIComponent(documentId)}&_fields=_all`;
+                
+                     const response = await this.apiCall(adUrl, {
+                        method: 'GET',
+                        headers: {
+                            'REST-Range': 'resources=0-100',
+                            'X-VTEX-API-AppKey': /* TODO: API KEY */"",
+                            'X-VTEX-API-AppToken': /* TODO: API TOKEN */""
+                        }
+                     });
+                     
+                     if (Array.isArray(response) && response.length > 0) {
+                        console.log(`Debug: Found addresses using DocumentId.`);
+                        return response;
+                     }
+                }
+
+                // 2b. Intentamos con Login ID (Alt UserId)
+                if (loginId && loginId !== userId && loginId !== documentId) {
+                     console.log("Debug: Fetching addresses for LoginId:", loginId);
+                     const adUrl = `${this.storeUrl}/api/dataentities/AD/search?_where=userId=${encodeURIComponent(loginId)}&_fields=_all`;
+                     
+                     const response = await this.apiCall(adUrl, {
+                        method: 'GET',
+                        headers: {
+                            'REST-Range': 'resources=0-100',
+                            'X-VTEX-API-AppKey': /* TODO: API KEY */"",
+                            'X-VTEX-API-AppToken': /* TODO: API TOKEN */""
+                        }
+                    });
+                    
+                    if (Array.isArray(response) && response.length > 0) {
+                        console.log(`Debug: Found addresses using LoginId.`);
+                        return response;
+                    }
+                }
+                
+                console.log("Debug: No addresses found with any ID.");
+                return [];
+
+            } catch (err: any) {
+                console.error("Debug: Error in getUserAddresses CL/Fallback flow:", err);
+                throw err;
+            }
+        
+        } catch (error) {
+            console.error("Error fetching user addresses:", error);
+            throw error;
+        }
+    }
+
+
 
   async fetchCategories(depth: number = 3): Promise<any[]> {
     try {
@@ -614,7 +782,7 @@ console.log("variables", variables)
     }
   }
 
-  async updateSession(email?: string): Promise<void> {
+  async updateSession(email?: string, postalCode?: string): Promise<void> {
     try {
         const url = `${this.storeUrl}/api/sessions`;
         const body: any = {
@@ -623,7 +791,13 @@ console.log("variables", variables)
 
         if (email) {
              body.public.storeUserEmail = { value: email };
-        } else {
+        }
+        
+        if (postalCode) {
+             body.public.postalCode = { value: postalCode };
+             body.public.country = { value: "USA" }; // Ensure country is set when setting postal code
+        } else if (!email) {
+             // Default behavior if nothing specific is passed, maybe just init
              body.public.country = { value: "USA" };
         }
 

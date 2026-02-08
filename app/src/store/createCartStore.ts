@@ -1,5 +1,6 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { createJSONStorage, persist } from "zustand/middleware";
 import {
     Cart, CartItem
 } from "../domain/entities/cart";
@@ -7,17 +8,19 @@ import { RemoveAllCartItemsUseCase } from "../domain/use-cases/remove-all-cart-i
 import { RemoveCartItemUseCase } from "../domain/use-cases/remove-cart-item.use-case";
 import { SyncCartUseCase } from "../domain/use-cases/sync-cart.use-case";
 import { UpdateCartItemUseCase } from "../domain/use-cases/update-cart-item.use-case";
-import { secureStorage } from "../shared/utils/secure-storage.adapter";
-// Normaliza el OrderForm para que sea consistente, sin importar el proveedor.
+
+import { GetCartUseCase } from "../domain/use-cases/get-cart.use-case";
+
 export interface CartState {
-  cart: Cart | null; // El estado principal ahora es un objeto Cart
+  cart: Cart | null;
   address: any | null;
   paymentInfo: any | null;
   isSyncing: boolean;
   syncError: string | null;
   lastKnownGoodState: { cart: Cart | null };
 
-  // Acciones para modificar el estado
+  hydrate: () => Promise<void>; 
+
   addItem: (id: string, quantity: number) => void;
   removeItem: (productId: string) => void;
   updateItemQuantity: (productId: string, quantity: number) => void;
@@ -25,15 +28,13 @@ export interface CartState {
   setAddress: (address: any) => void;
   setPaymentInfo: (paymentInfo: any) => void;
 
-  // Acciones internas para la sincronización
   _setSyncing: (isSyncing: boolean) => void;
   _setSyncError: (error: string | null) => void;
   _revertToLastKnownState: () => void;
   syncCart: (items: { id: string; quantity: number }[]) => void;
-  reset: () => void; // 👈 New reset action
+  reset: () => void;
 }
 
-// Función helper para "debouncing"
 function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: Parameters<F>): void => {
@@ -41,17 +42,17 @@ function debounce<F extends (...args: any[]) => any>(func: F, waitFor: number) {
     timeout = setTimeout(() => func(...args), waitFor);
   };
 }
-// ✨ La fábrica ahora acepta el SyncCartUseCase
+
 export const createCartStore = (
   syncCartUseCase: SyncCartUseCase,
   updateCartItemUseCase: UpdateCartItemUseCase,
-  removeCartItemUseCase: RemoveCartItemUseCase, // 👈 Esta dependencia es para removeItem
-  removeAllCartItemsUseCase: RemoveAllCartItemsUseCase // 👈 Esta es para clearCart
+  removeCartItemUseCase: RemoveCartItemUseCase,
+  removeAllCartItemsUseCase: RemoveAllCartItemsUseCase,
+  getCartUseCase: GetCartUseCase 
 ) => {
   return create(
     persist<CartState>(
       (set, get) => ({
-        // Estado inicial
         cart: null,
         address: null,
         paymentInfo: null,
@@ -59,8 +60,27 @@ export const createCartStore = (
         syncError: null,
         lastKnownGoodState: { cart: null },
 
-        // --- ACCIONES OPTIMISTAS ---
-        
+        hydrate: async () => {
+             console.log("Hydrating cart from server...");
+             set({ isSyncing: true });
+             const result = await getCartUseCase.execute();
+             
+             result.fold(
+                 (error) => {
+                      console.warn("Failed to hydrate cart:", error);
+                      set({ isSyncing: false }); // Don't set error to avoid blocking UI
+                 },
+                 (cart) => {
+                      console.log("Cart hydrated successfully:", cart.items.length, "items.");
+                      set({ 
+                          cart: cart, 
+                          lastKnownGoodState: { cart: cart },
+                          isSyncing: false 
+                      });
+                 }
+             );
+        },
+
         reset: () => {
             console.log("Resetting CartStore state...");
             set({
@@ -89,10 +109,9 @@ export const createCartStore = (
                   : item
               );
             } else {
-              // Para una UI optimista, creamos un item temporal. La sincronización lo reemplazará con datos reales.
               const newItem: CartItem = {
                 id: `temp-${Date.now()}`,
-                index: -1, // El índice real vendrá del servidor
+                index: -1,
                 quantity,
                 product: { id, name: "Cargando...", image: "" },
                 price: 0,
@@ -108,67 +127,107 @@ export const createCartStore = (
             };
           });
 
-          const itemsToSync = get().cart?.items.map((i) => ({ id: i.product.id, quantity: i.quantity })) || [];
+
+
+          // ✅ Fix: Pass uniqueId if available, otherwise fallback to SKU id
+          const itemsToSync = get().cart?.items.map((i) => ({ 
+              id: i.product.id, 
+              uniqueId: i.id, // Assuming i.id holds the uniqueId/lineId
+              quantity: i.quantity 
+          })) || [];
+          console.log("itemsToSync", itemsToSync)
           get().syncCart(itemsToSync);
         },
 
-        removeItem: (productId) => {
-          // UI Optimista
+        removeItem: (idOrProductId) => {
           set(state => {
-            if (!state.cart) return state; // Si no hay carrito, no hacemos nada.
-            const newItems = state.cart.items.filter(item => item.product.id !== productId);
+            if (!state.cart) return state;
+            
+            // Try matching by uniqueId/item.id first (Cart Screen)
+            let newItems = state.cart.items.filter(item => item.id !== idOrProductId);
+            
+            // If length is same, it might be a productId (PLP/PDP)
+            if (newItems.length === state.cart.items.length) {
+                 newItems = state.cart.items.filter(item => item.product.id !== idOrProductId);
+            }
+
             const newSubtotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             return { cart: { ...state.cart, items: newItems, subtotal: newSubtotal } };
           });
 
-          // Disparamos la sincronización
-          const itemsToSync = get().cart?.items.map((i) => ({ id: i.product.id, quantity: i.quantity })) || [];
+          const itemsToSync = get().cart?.items.map((i) => ({ 
+              id: i.product.id, 
+              uniqueId: i.id, 
+              quantity: i.quantity 
+          })) || [];
           get().syncCart(itemsToSync);
         },
 
-        updateItemQuantity: (productId, quantity) => {
-          // Si la cantidad es 0 o menos, usamos la lógica de `removeItem`.
+        updateItemQuantity: (idOrProductId, quantity) => {
           if (quantity <= 0) {
-            get().removeItem(productId);
+            get().removeItem(idOrProductId);
             return;
           }
 
-          // UI Optimista: Actualiza la cantidad localmente
           set(state => {
-            if (!state.cart) return state; // Si no hay carrito, no hacemos nada.
-            const newItems = state.cart.items.map(item =>
-              item.product.id === productId ? { ...item, quantity } : item
-            );
+            if (!state.cart) return state;
+            
+            let itemFound = false;
+            
+            // 1. Try to find by uniqueId (Specific line item)
+            let newItems = state.cart.items.map(item => {
+                if (item.id === idOrProductId) {
+                    itemFound = true;
+                    return { ...item, quantity };
+                }
+                return item;
+            });
+
+            // 2. If not found by uniqueId, try to find by productId (SKU)
+            // This is the fallback for PLP/PDP which only knows SKU ID.
+            // We verify if there is an item with this product.id
+            if (!itemFound) {
+                 // Optimization: Update the first one found? 
+                 // Or we could implement the "Update Total" logic if we were sure.
+                 // Since the user rejected the complex logic, we revert to finding the first matching item.
+                 newItems = state.cart.items.map(item => {
+                    if (!itemFound && item.product.id === idOrProductId) {
+                        itemFound = true;
+                        return { ...item, quantity };
+                    }
+                    return item;
+                });
+            }
+
             const newSubtotal = newItems.reduce((sum, item) => sum + item.price * item.quantity, 0);
             return { cart: { ...state.cart, items: newItems, subtotal: newSubtotal } };
           });
-
-          // Disparamos la sincronización
-          const itemsToSync = get().cart?.items.map((i) => ({ id: i.product.id, quantity: i.quantity })) || [];
+          
+          const itemsToSync = get().cart?.items.map((i) => ({ 
+              id: i.product.id, 
+              uniqueId: i.id,
+              quantity: i.quantity 
+          })) || [];
           get().syncCart(itemsToSync);
         },
 
         clearCart: async () => {
-          // UI Optimista: vacía el carrito en la UI inmediatamente
           set(state => ({
             cart: state.cart
               ? { ...state.cart, items: [], subtotal: 0 }
               : { id: '', items: [], subtotal: 0 },
           }));
 
-          // Llama al caso de uso para vaciar el carrito en el backend
           const result = await removeAllCartItemsUseCase.execute();
 
           result.fold(
-            get()._revertToLastKnownState, // Si falla, revierte al estado anterior
+            get()._revertToLastKnownState,
             (updatedCart: Cart) => {
               console.log('Cart cleared successfully. Server confirmed state.');
               set({ cart: updatedCart, lastKnownGoodState: { cart: updatedCart } });
             }
           );
         },
-
-        // --- LÓGICA DE SINCRONIZACIÓN Y REVERSIÓN ---
 
         _setSyncing: (isSyncing) => set({ isSyncing, syncError: null }),
         _setSyncError: (error) => set({ isSyncing: false, syncError: error }),
@@ -183,8 +242,8 @@ export const createCartStore = (
         },
 
         syncCart: debounce(
-          async (itemsToSync: { id: string; quantity: number }[]) => {
-         
+          async (itemsToSync: { id: string; uniqueId?: string; quantity: number }[]) => {
+            console.log("CartStore: syncCart triggered. Items:", JSON.stringify(itemsToSync));
             const { _setSyncing, _revertToLastKnownState } = get();
             _setSyncing(true);
 
@@ -192,34 +251,34 @@ export const createCartStore = (
               ...item,
               seller: "1",
             }));
+            
+            console.log("CartStore: Calling syncCartUseCase with:", JSON.stringify(itemsWithSeller));
             const result = await syncCartUseCase.execute(itemsWithSeller); 
+            console.log("CartStore: syncCartUseCase returned.");
 
             result.fold(
               (error) => {
-                console.error("Sync failed:", error);
+                console.error("CartStore: Sync failed:", error);
               },
               (updatedCart: Cart) => {
-                // El caso de uso ahora devuelve la entidad Cart
-                console.log("Sync successful");
+                console.log("CartStore: Sync successful. New subtotal:", updatedCart.subtotal);
                 set(() => ({
                   cart: updatedCart,
-                  lastKnownGoodState: { cart: updatedCart }, // Actualiza el "punto de guardado"
+                  lastKnownGoodState: { cart: updatedCart },
                   isSyncing: false,
                 }));
               }
             );
           },
           1500
-        ), // Espera 1.5 segundos después del último cambio para sincronizar
-
-        // --- Otras acciones (no necesitan sincronización) ---
+        ),
 
         setAddress: (address) => set({ address }),
         setPaymentInfo: (paymentInfo) => set({ paymentInfo }),
       }),
       {
-        name: "cart-storage", // Nombre de la clave en el almacenamiento
-        storage: secureStorage, // Usamos nuestro adaptador de SecureStore
+        name: "cart-storage",
+        storage: createJSONStorage(() => AsyncStorage),
       }
     )
   );

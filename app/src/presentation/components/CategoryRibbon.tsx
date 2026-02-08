@@ -1,43 +1,43 @@
-import { Ionicons } from '@expo/vector-icons';
 import { useRouter } from 'expo-router';
 import React from 'react';
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
+import { Image, ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 
-const CATEGORIES = [
-  { id: '1', name: 'Phones', iconName: 'phone-portrait-outline' },
-  { id: '2', name: 'Consoles', iconName: 'game-controller-outline' },
-  { id: '3', name: 'Laptops', iconName: 'laptop-outline' },
-  { id: '4', name: 'Cameras', iconName: 'camera-outline' },
-  { id: '5', name: 'Audio', iconName: 'headset-outline' },
-  { id: '6', name: 'Watches', iconName: 'watch-outline' },
-];
+import { CategoryItem } from '../../domain/entities/home-layout';
 
-const CategoryRibbon = () => {
+interface CategoryRibbonProps {
+  items: CategoryItem[];
+  textColor: string;
+  secondaryText: string;
+}
+
+const CategoryRibbon = ({ items, textColor, secondaryText }: CategoryRibbonProps) => {
   const router = useRouter();
-
+  console.log("items", items)
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Categories</Text>
-        <TouchableOpacity onPress={() => router.push('/(tabs)/categories')}>
-          <Text style={styles.seeAll}>See all {'>'}</Text>
-        </TouchableOpacity>
+        <Text style={[styles.title, { color: textColor }]}>CATEGORÍAS</Text>
       </View>
       <ScrollView 
         horizontal 
         showsHorizontalScrollIndicator={false} 
         contentContainerStyle={styles.scrollContent}
       >
-        {CATEGORIES.map((cat) => (
+        {items.map((cat) => (
           <TouchableOpacity 
             key={cat.id} 
             style={styles.categoryItem}
-            onPress={() => router.push('/(tabs)/categories')}
+            onPress={() => cat.link ? router.push(`/(tabs)${cat.link}`) : router.push('/(tabs)/categories')}
           >
-            <View style={styles.iconContainer}>
-              <Ionicons name={cat.iconName as any} size={24} color="#000" />
+            <View style={[styles.imageContainer, { backgroundColor: textColor === '#000000' ? '#F5F5F5' : '#111', borderColor: textColor === '#000000' ? '#EAEAEA' : '#222' }]}>
+             {/* Use cat.image if available, otherwise fallback/placeholder */}
+              <Image 
+                source={{ uri: cat.image || 'https://via.placeholder.com/100' }} 
+                style={styles.categoryImage} 
+                resizeMode="cover"
+              />
             </View>
-            <Text style={styles.categoryName}>{cat.name}</Text>
+            <Text style={[styles.categoryName, { color: textColor }]}>{cat.name}</Text>
           </TouchableOpacity>
         ))}
       </ScrollView>
@@ -48,6 +48,7 @@ const CategoryRibbon = () => {
 const styles = StyleSheet.create({
   container: {
     marginBottom: 30,
+    marginTop: 10,
   },
   header: {
     flexDirection: 'row',
@@ -72,28 +73,31 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 20,
-    gap: 25,
+    gap: 20,
   },
   categoryItem: {
     alignItems: 'center',
-    width: 60,
+    width: 80,
   },
-  iconContainer: {
-    width: 60,
-    height: 60,
-    borderRadius: 30, // Circle
-    backgroundColor: '#F5F5F5', // Very light grey
-    justifyContent: 'center',
-    alignItems: 'center',
+  imageContainer: {
+    width: 70,
+    height: 70,
+    borderRadius: 35, // Circle
+    backgroundColor: '#F5F5F5',
+    overflow: 'hidden',
     marginBottom: 10,
     borderWidth: 1,
     borderColor: '#EAEAEA',
   },
+  categoryImage: {
+    width: '100%',
+    height: '100%',
+  },
   categoryName: {
-    fontSize: 10,
+    fontSize: 11,
     color: '#000',
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
     letterSpacing: 0.5,
     textTransform: 'uppercase',
   },

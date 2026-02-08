@@ -67,20 +67,75 @@ const CartItemCard = ({
   const { updateItemQuantity, removeItem } = useStorefront().useCartStore();
 
   const handleIncrease = () => {
-    updateItemQuantity(item.product.id, item.quantity + 1);
+    updateItemQuantity(item.id, item.quantity + 1);
   };
 
   const handleDecrease = () => {
     if (item.quantity > 1) {
-      updateItemQuantity(item.product.id, item.quantity - 1);
+      updateItemQuantity(item.id, item.quantity - 1);
     } else {
-      removeItem(item.product.id);
+      removeItem(item.id);
     }
   };
 
   const textColor = isDark ? '#FFFFFF' : '#000000';
   const secondaryText = isDark ? '#AAAAAA' : '#666666';
   const cardBg = isDark ? '#000000' : '#FFFFFF'; // Transparent/Background color
+
+  const { cart } = useStorefront().useCartStore();
+
+  // Logic to identify if this item is part of a split SKU group (e.g. 2x1 promo)
+  // and if it's the one with higher quantity to show the message.
+  const isSplitSku = React.useMemo(() => {
+    if (!cart?.items) return false;
+    // Count how many items have this same product.id
+    const sameSkuItems = cart.items.filter(i => i.product.id === item.product.id);
+    return sameSkuItems.length > 1;
+  }, [cart?.items, item.product.id]);
+
+  const showPromoMessage = React.useMemo(() => {
+    if (!isSplitSku || !cart?.items) return false;
+    
+    // Get all items with same SKU
+    const sameSkuItems = cart.items.filter(i => i.product.id === item.product.id);
+    
+    // Find the max quantity among them
+    const maxQuantity = Math.max(...sameSkuItems.map(i => i.quantity));
+    
+    // If this item has the max quantity involved, show message.
+    // Edge case: If equal quantities (e.g. 1 and 1), show on the first one?
+    // User said "el que tenga mayor cantidad".
+    // If quantities are equal, we might want to prioritize the "paid" one (usually higher price or price > 0).
+    // Or just check if this item matches the max quantity.
+    // To avoid showing on both if 1 and 1, we can sort by price?
+    // Let's stick to: quantity === maxQuantity.
+    // If multiple have maxQuantity, we could just show on the first one found in the list.
+    
+    // Find index of this item in the filtered list
+    // If multiple have same max, we only show for the first one that has max.
+    const itemsWithMax = sameSkuItems.filter(i => i.quantity === maxQuantity);
+    
+    // If this item is the first one in the "itemsWithMax" list (by some stable order, e.g. uniqueId comparison or just match)
+    // A simpler way: Show if item.quantity === maxQuantity AND it's the first one in the cart with that SKU and Max Qty.
+    // BUT user said "mayor cantidad". 
+    // Let's assume strict inequality usually. If equal, showing on both might be duplicate.
+    
+    // Refined logic: Show if it has the highest quantity. 
+    // If tie, show on the one with higher price (paid item).
+    
+    if (item.quantity === maxQuantity) {
+        // Tie-breaker: Price
+        const maxPrice = Math.max(...itemsWithMax.map(i => i.price));
+        if (item.price === maxPrice) {
+            // Tie-breaker: UniqueID (ensure only one shows if identical price/qty)
+             // ... We can just return true. If duplicates, showing twice 'Tienes un producto gratis' is acceptable or we refine later.
+             return true;
+        }
+    }
+    return false;
+
+  }, [isSplitSku, cart?.items, item.product.id, item.quantity, item.price]);
+
 
   return (
     <View style={[styles.itemContainer, { backgroundColor: cardBg }]}>
@@ -107,6 +162,14 @@ const CartItemCard = ({
             onDecrease={handleDecrease}
             isDark={isDark}
           />
+          {showPromoMessage && (
+              <View style={{ flexDirection: 'row', alignItems: 'center', marginTop: 4 }}>
+                  <Ionicons name="information-circle" size={14} color="#FFA500" style={{ marginRight: 4 }} />
+                  <Text style={{ color: isDark ? '#FFA500' : '#E69500', fontSize: 12, fontWeight: '600' }}>
+                      ¡Tiene un producto gratis!
+                  </Text>
+              </View>
+          )}
         </View>
       </View>
     </View>
@@ -127,7 +190,7 @@ const CartScreen = () => {
   if (!cart || cart.items?.length === 0) {
     return (
       <View style={[styles.centered, { backgroundColor: bgColor }]}>
-        <Text style={[styles.emptyText, { color: textColor }]}>YOUR BAG IS EMPTY</Text>
+        <Text style={[styles.emptyText, { color: textColor }]}>TU CARRITO ESTÁ VACÍO</Text>
       </View>
     );
   }
@@ -136,11 +199,11 @@ const CartScreen = () => {
     <View style={[styles.container, { backgroundColor: bgColor }]}>
       {/* Header */}
       <View style={[styles.header, { paddingTop: insets.top + 10, borderColor: borderColor }]}>
-        <Text style={[styles.headerTitle, { color: textColor }]}>MY BAG</Text>
+        <Text style={[styles.headerTitle, { color: textColor }]}>MI CARRITO</Text>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
             {isSyncing && <ActivityIndicator size="small" color={textColor} style={{ marginRight: 10 }} />}
             <TouchableOpacity onPress={clearCart}>
-            <Text style={styles.clearButtonText}>CLEAR</Text>
+            <Text style={styles.clearButtonText}>LIMPIAR</Text>
             </TouchableOpacity>
         </View>
       </View>
@@ -168,7 +231,7 @@ const CartScreen = () => {
           onPress={() => router.push('/checkout')}
         >
           <Text style={[styles.checkoutButtonText, { color: isDark ? '#000000' : '#FFFFFF' }]}>
-            CHECKOUT
+            FINALIZAR COMPRA
           </Text>
         </TouchableOpacity>
       </View>

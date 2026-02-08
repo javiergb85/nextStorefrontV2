@@ -15,7 +15,7 @@ import { useStorefront } from "../../context/storefront.context";
 import { useTheme } from "../../context/theme.context";
 
 const LoginScreen = () => {
-  const { login, isLoading, accessToken } = useStorefront().useLoginStore();
+  const { login, loginAsGuest, isLoading, accessToken, isGuest } = useStorefront().useLoginStore();
   const router = useRouter();
   const { theme } = useTheme();
   const insets = useSafeAreaInsets();
@@ -34,15 +34,14 @@ const LoginScreen = () => {
   const buttonBg = isDark ? '#FFFFFF' : '#000000';
   const buttonText = isDark ? '#000000' : '#FFFFFF';
 
-  // Redireccionar si el usuario ya está autenticado.
-  // Redireccionar si el usuario ya está autenticado.
+  // Redireccionar si el usuario ya está autenticado o es invitado.
   React.useEffect(() => {
-    if (accessToken) {
+    if (accessToken || isGuest) {
       router.replace("/");
     }
-  }, [accessToken]);
+  }, [accessToken, isGuest]);
 
-  if (accessToken) {
+  if (accessToken || isGuest) {
     return null;
   }
 
@@ -51,10 +50,12 @@ const LoginScreen = () => {
     // En una aplicación real, obtendrías estos valores de los campos de entrada.
     console.log("entrando");
 
+    await login(email, password);
+
     //await login("prueba1@yopmail.com", "contraseña123");
 
-  await login("paula.montesrodriguez@balloon-group.com", "Prueba123");
-   // await login("javier.guevarabarrios@balloon-group.com", "Jagb27027055..");
+    //await login("paula.montesrodriguez@balloon-group.com", "Prueba123");
+    // await login("javier.guevarabarrios@balloon-group.com", "Jagb27027055..");
     // await login('test@test.com', 'password123');
   };
 
@@ -70,15 +71,15 @@ const LoginScreen = () => {
         </View>
 
         <View style={styles.formContainer}>
-            <Text style={[styles.title, { color: textColor }]}>WELCOME BACK</Text>
-            <Text style={[styles.subtitle, { color: secondaryText }]}>Please sign in to continue</Text>
+            <Text style={[styles.title, { color: textColor }]}>BIENVENIDO DE NUEVO</Text>
+            <Text style={[styles.subtitle, { color: secondaryText }]}>Por favor inicia sesión para continuar</Text>
 
             {/* Email Input */}
             <View style={styles.inputWrapper}>
-                <Text style={[styles.label, { color: textColor }]}>EMAIL</Text>
+                <Text style={[styles.label, { color: textColor }]}>CORREO ELECTRÓNICO</Text>
                 <TextInput
                     style={[styles.input, { backgroundColor: inputBg, borderColor: borderColor, color: textColor }]}
-                    placeholder="Enter your email"
+                    placeholder="Ingresa tu correo"
                     placeholderTextColor={secondaryText}
                     value={email}
                     onChangeText={setEmail}
@@ -89,10 +90,10 @@ const LoginScreen = () => {
 
             {/* Password Input */}
             <View style={styles.inputWrapper}>
-                <Text style={[styles.label, { color: textColor }]}>PASSWORD</Text>
+                <Text style={[styles.label, { color: textColor }]}>CONTRASEÑA</Text>
                 <TextInput
                     style={[styles.input, { backgroundColor: inputBg, borderColor: borderColor, color: textColor }]}
-                    placeholder="Enter your password"
+                    placeholder="Ingresa tu contraseña"
                     placeholderTextColor={secondaryText}
                     value={password}
                     onChangeText={setPassword}
@@ -102,7 +103,7 @@ const LoginScreen = () => {
 
             {/* Forgot Password */}
             <TouchableOpacity style={styles.forgotPassword}>
-                <Text style={[styles.forgotPasswordText, { color: secondaryText }]}>Forgot Password?</Text>
+                <Text style={[styles.forgotPasswordText, { color: secondaryText }]}>¿Olvidaste tu contraseña?</Text>
             </TouchableOpacity>
 
             {/* Login Button */}
@@ -115,15 +116,27 @@ const LoginScreen = () => {
                 {isLoading ? (
                     <ActivityIndicator size="small" color={buttonText} />
                 ) : (
-                    <Text style={[styles.loginButtonText, { color: buttonText }]}>LOGIN</Text>
+                    <Text style={[styles.loginButtonText, { color: buttonText }]}>INICIAR SESIÓN</Text>
                 )}
+            </TouchableOpacity>
+
+            {/* Guest Button */}
+            <TouchableOpacity
+                style={[styles.guestButton, { borderColor: borderColor }]}
+                onPress={async () => {
+                    await loginAsGuest();
+                    // router.replace("/"); // The useEffect will handle this
+                }}
+                disabled={isLoading}
+            >
+                <Text style={[styles.guestButtonText, { color: textColor }]}>ENTRAR COMO INVITADO</Text>
             </TouchableOpacity>
 
             {/* Sign Up Link */}
             <View style={styles.footer}>
-                <Text style={[styles.footerText, { color: secondaryText }]}>Don't have an account? </Text>
+                <Text style={[styles.footerText, { color: secondaryText }]}>¿No tienes una cuenta? </Text>
                 <TouchableOpacity>
-                    <Text style={[styles.signUpText, { color: textColor }]}>Sign Up</Text>
+                    <Text style={[styles.signUpText, { color: textColor }]}>Regístrate</Text>
                 </TouchableOpacity>
             </View>
         </View>
@@ -200,6 +213,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '800',
     letterSpacing: 2,
+    textTransform: 'uppercase',
+  },
+  guestButton: {
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderRadius: 0,
+    borderWidth: 1,
+    marginBottom: 24,
+  },
+  guestButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    letterSpacing: 1,
     textTransform: 'uppercase',
   },
   footer: {

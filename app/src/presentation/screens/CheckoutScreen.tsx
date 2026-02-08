@@ -4,13 +4,17 @@ import React, { useEffect, useState } from 'react';
 import { ActivityIndicator, StyleSheet, Text, TouchableOpacity, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { useStorefront } from '../../context/storefront.context';
-import { getAuthToken, getVtexOrderFormId, getVtexSessionCookies } from '../../shared/utils/auth-storage.util';
+import { useTheme } from '../../context/theme.context';
+import { getAuthToken, getVtexOrderFormId, getVtexSessionCookies, isTokenExpired } from '../../shared/utils/auth-storage.util';
 import { WebViewCheckout } from '../components/WebViewCheckout';
 
 const CheckoutScreen = () => {
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { services } = useStorefront();
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+  const { services, useLoginStore } = useStorefront();
+  const isGuest = useLoginStore((state) => state.isGuest);
   const [loading, setLoading] = useState(true);
   const [checkoutData, setCheckoutData] = useState<any>(null);
   const [cookies, setCookies] = useState<{
@@ -23,7 +27,23 @@ const CheckoutScreen = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const token = await getAuthToken();
+        let token = await getAuthToken();
+        
+        // 💡 Check for token expiration
+        if (token && isTokenExpired(token)) {
+            console.log("⚠️ [CheckoutScreen] Token expired. Revalidating...");
+            const revalidated = await useLoginStore.getState().revalidateAuth();
+            if (revalidated) {
+                console.log("✅ [CheckoutScreen] Revalidation successful.");
+                token = await getAuthToken(); // Get new token
+            } else {
+                console.warn("❌ [CheckoutScreen] Revalidation failed.");
+                // Handle failure (optional: redirect to login or show error)
+            }
+        } else {
+             console.log("✅ [CheckoutScreen] Token is valid.");
+        }
+
         const orderFormId = await getVtexOrderFormId();
         const { session, segment } = await getVtexSessionCookies();
         
@@ -59,35 +79,45 @@ const CheckoutScreen = () => {
 
   if (loading) {
     return (
-      <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#0000ff" />
+      <View style={[styles.loadingContainer, { backgroundColor: isDark ? '#000' : '#fff' }]}>
+        <ActivityIndicator size="large" color={isDark ? '#fff' : '#0000ff'} />
       </View>
     );
   }
 
   if (!checkoutData || !cookies) {
     return (
-      <View style={styles.container}>
-        <Text>Error loading checkout</Text>
+      <View style={[styles.container, { backgroundColor: isDark ? '#000' : '#fff' }]}>
+        <Text style={{ color: isDark ? '#fff' : '#000' }}>Error al cargar el pago</Text>
       </View>
     );
   }
 
   return (
-    <View style={[styles.container, { paddingTop: insets.top }]}>
-      <View style={styles.header}>
+    <View style={[styles.container, { paddingTop: insets.top, backgroundColor: isDark ? '#000' : '#fff' }]}>
+      <View style={[styles.header, { borderBottomColor: isDark ? '#222' : '#eee' }]}>
         <TouchableOpacity onPress={() => router.back()} style={styles.backButton}>
-          <Ionicons name="arrow-back" size={24} color="black" />
-          <Text style={styles.backText}>Back to Cart</Text>
+          <Ionicons name="arrow-back" size={24} color={isDark ? '#fff' : 'black'} />
+          <Text style={[styles.backText, { color: isDark ? '#fff' : 'black' }]}>Volver al carrito</Text>
         </TouchableOpacity>
       </View>
       <WebViewCheckout
         checkout={checkoutData}
         hostname= 'hanesar.myvtex.com' 
-        sessionCookie={cookies.sessionCookie}
-        vtexIdClientCookie={cookies.vtexIdClientCookie}
-        segmentCookie={cookies.segmentCookie}
+        sessionCookie={isGuest ? '' : cookies.sessionCookie}
+        vtexIdClientCookie={isGuest ? '' : cookies.vtexIdClientCookie}
+        segmentCookie={isGuest ? '' : cookies.segmentCookie}
         orderFormCookie={cookies.orderFormCookie}
+        onAddressChange={async (postalCode) => {
+            console.log("📬 [CheckoutScreen] Address changed. Syncing session with postal code:", postalCode);
+            try {
+                // We cast provider to any because updateSession might not be in the generic Provider interface
+                await (services.provider as any).updateSession(undefined, postalCode);
+                console.log("✅ [CheckoutScreen] Session synced with new postal code.");
+            } catch (error) {
+                console.error("❌ [CheckoutScreen] Failed to sync session:", error);
+            }
+        }}
       />
     </View>
   );

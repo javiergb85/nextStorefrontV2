@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { ProductFetchInput } from "../data/providers/vtex/vtex.types/vtex.products.types";
+import { Facet } from "../domain/entities/facet";
 import { Product } from "../domain/entities/product";
 import { GetProductsUseCase } from "../domain/use-cases/get-products.use-case";
 
@@ -7,6 +8,8 @@ import { queryClient } from "../shared/query-client";
 
 interface ProductState {
   products: Product[];
+  facets: Facet[];
+  totalCount: number;
   isLoading: boolean;
   error: string | null;
   fetchProducts: (input?: ProductFetchInput | any) => Promise<void>;
@@ -18,6 +21,8 @@ interface ProductState {
 export const createProductStore = (getProductsUseCase: GetProductsUseCase) => {
   return create<ProductState>((set) => ({
     products: [],
+    facets: [],
+    totalCount: 0,
     isLoading: false,
     isFetchingMore: false,
     error: null,
@@ -61,7 +66,7 @@ export const createProductStore = (getProductsUseCase: GetProductsUseCase) => {
           });
 
           set((state) => {
-            const newProducts = data;
+            const { products: newProducts, facets, totalCount } = data;
 
             // 💡 Paso 1: Crear un Set de IDs existentes (para búsqueda rápida)
             // Si es carga inicial, no necesitamos los IDs viejos.
@@ -78,6 +83,8 @@ export const createProductStore = (getProductsUseCase: GetProductsUseCase) => {
             if (isInitialLoad) {
               return {
                 products: uniqueNewProducts, // Solo los nuevos y únicos
+                facets: facets,
+                totalCount: totalCount,
                 isLoading: false,
                 isFetchingMore: false,
                 error: null,
@@ -87,6 +94,8 @@ export const createProductStore = (getProductsUseCase: GetProductsUseCase) => {
             // Concatenamos (solo los productos únicos recién filtrados)
             return {
               products: [...state.products, ...uniqueNewProducts], // 👈 ¡La clave de la solución!
+              facets: facets,
+              totalCount: totalCount,
               isLoading: false,
               isFetchingMore: false,
               error: null,

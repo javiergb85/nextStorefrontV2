@@ -3,4 +3,5 @@
 export interface AuthRepository {
   login(email: string, password: string): Promise<string>;
   getUserProfile(email: string): Promise<any>;
+    getUserAddresses(email: string, userId?: string): Promise<any[]>;
 }

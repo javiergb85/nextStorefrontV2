@@ -4,9 +4,9 @@ import LoginScreen from '../src/presentation/screens/LoginScreen';
 import ProfileScreen from '../src/presentation/screens/ProfileScreen';
 
 export default function ProfileTab() {
-  const { accessToken } = useStorefront().useLoginStore();
+  const { accessToken, isGuest } = useStorefront().useLoginStore();
 
-  if (accessToken) {
+  if (accessToken || isGuest) {
     return <ProfileScreen />;
   }
 

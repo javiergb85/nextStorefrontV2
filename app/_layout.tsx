@@ -15,7 +15,7 @@ import config from "./src/providers.json";
 // Lógica de autenticación centralizada
 const AuthGuard = ({ children }: { children: React.ReactNode }) => {
   const segments = useSegments();
-  const { accessToken, isLoading, initializeAuth } = useStorefront().useLoginStore();
+  const { accessToken, isLoading, initializeAuth, isGuest } = useStorefront().useLoginStore();
   const inLoginRoute = segments[0] === 'login';
 
   useEffect(() => {
@@ -30,13 +30,13 @@ const AuthGuard = ({ children }: { children: React.ReactNode }) => {
     );
   }
 
-  // Redirigimos si no hay token Y la ruta actual no es la de login
-  if (!accessToken && !inLoginRoute) {
+  // Redirigimos si no hay token NI es invitado Y la ruta actual no es la de login
+  if (!accessToken && !isGuest && !inLoginRoute) {
     return <Redirect href="/login" />;
   }
   
-  // Si hay token Y estamos en la ruta de login, redirigimos a la página principal
-  if (accessToken && inLoginRoute) {
+  // Si (hay token O es invitado) Y estamos en la ruta de login, redirigimos a la página principal
+  if ((accessToken || isGuest) && inLoginRoute) {
     return <Redirect href="/" />;
   }
 

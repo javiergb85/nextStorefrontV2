@@ -3,10 +3,12 @@ import {
     ProviderConfig,
 } from "./data/providers/provider.factory";
 import { EcommerceRepositoryImpl } from "./data/repositories/ecommerce.repository.impl";
+import { GetCartUseCase } from "./domain/use-cases/get-cart.use-case";
 import { GetOrderDetailUseCase } from "./domain/use-cases/get-order-detail.use-case";
 import { GetOrdersUseCase } from "./domain/use-cases/get-orders.use-case";
 import { GetProductDetailUseCase } from "./domain/use-cases/get-product-detail";
 import { GetProductsUseCase } from "./domain/use-cases/get-products.use-case";
+import { GetUserAddressesUseCase } from "./domain/use-cases/get-user-addresses.use-case";
 import { GetUserProfileUseCase } from "./domain/use-cases/get-user-profile.use-case";
 import { LoginUseCase } from "./domain/use-cases/login.use-case";
 import { RemoveAllCartItemsUseCase } from "./domain/use-cases/remove-all-cart-items.use-case";
@@ -42,8 +44,10 @@ export function initializeServices(config: any, loginStoreApi: LoginStoreApi) {
   const removeCartItemUseCase = new RemoveCartItemUseCase(ecommerceRepository);
   const removeAllCartItemsUseCase = new RemoveAllCartItemsUseCase(ecommerceRepository);
   const getUserProfileUseCase = new GetUserProfileUseCase(ecommerceProvider);
+  const getUserAddressesUseCase = new GetUserAddressesUseCase(ecommerceProvider);
   const getOrdersUseCase = new GetOrdersUseCase(ecommerceRepository);
   const getOrderDetailUseCase = new GetOrderDetailUseCase(ecommerceRepository);
+  const getCartUseCase = new GetCartUseCase(ecommerceRepository);
 
   // Devolvemos todas las dependencias en un solo objeto.
   return {
@@ -55,8 +59,10 @@ export function initializeServices(config: any, loginStoreApi: LoginStoreApi) {
     removeCartItemUseCase,
     removeAllCartItemsUseCase,
     getUserProfileUseCase,
+    getUserAddressesUseCase,
     getOrdersUseCase,
     getOrderDetailUseCase,
+    getCartUseCase,
     provider: ecommerceProvider, // 💡 Exponemos el proveedor para casos especiales (como categorías)
   };
 }

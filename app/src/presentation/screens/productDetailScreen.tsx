@@ -124,10 +124,10 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) 
     return (
       <View style={[styles.centered, { backgroundColor: bgColor }]}>
         <Text style={[styles.errorText, { color: textColor }]}>
-            {error || 'Product not found'}
+            {error || 'Producto no encontrado'}
         </Text>
         <TouchableOpacity onPress={() => router.back()} style={{ marginTop: 20 }}>
-            <Text style={{ color: secondaryText, textDecorationLine: 'underline' }}>Go Back</Text>
+            <Text style={{ color: secondaryText, textDecorationLine: 'underline' }}>Volver</Text>
         </TouchableOpacity>
       </View>
     );
@@ -161,7 +161,7 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) 
             {/* Product Info */}
             <View style={styles.infoContainer}>
                 <Animated.Text entering={FadeInDown.delay(100).duration(600)} style={[styles.brand, { color: secondaryText }]}>
-                    PREMIUM COLLECTION
+                    COLECCIÓN PREMIUM
                 </Animated.Text>
                 
                 <Animated.Text entering={FadeInDown.delay(200).duration(600)} style={[styles.name, { color: textColor }]}>
@@ -174,7 +174,7 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) 
 
                 {/* Description */}
                 <Animated.View entering={FadeInDown.delay(400).duration(600)} style={styles.descriptionContainer}>
-                    <Text style={[styles.sectionTitle, { color: textColor }]}>DESCRIPTION</Text>
+                    <Text style={[styles.sectionTitle, { color: textColor }]}>DESCRIPCIÓN</Text>
                     <HTML 
                         source={{ html: product.description }} 
                         contentWidth={windowWidth}
@@ -189,10 +189,10 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) 
         </ScrollView>
 
         {/* Bottom Action Bar */}
-        <Animated.View entering={FadeInUp.delay(500).duration(600)} style={[styles.bottomBar, { backgroundColor: bgColor, paddingBottom: insets.bottom + 20 }]}>
+        <Animated.View entering={FadeInUp.delay(500).duration(600)} style={[styles.bottomBar, { backgroundColor: bgColor, borderTopColor: isDark ? '#333' : 'rgba(0,0,0,0.05)', paddingBottom: insets.bottom + 20 }]}>
             {cartItem ? (
                 <View style={styles.quantityContainer}>
-                    <Text style={[styles.inBagText, { color: secondaryText }]}>IN BAG:</Text>
+                    <Text style={[styles.inBagText, { color: secondaryText }]}>EN EL CARRITO:</Text>
                     <QuantitySelector 
                         quantity={cartItem.quantity}
                         onIncrease={handleIncrease}
@@ -206,7 +206,7 @@ const ProductDetailScreen: React.FC<ProductDetailScreenProps> = ({ productId }) 
                     onPress={handleAddToCart}
                     activeOpacity={0.9}
                 >
-                    <Text style={[styles.addToCartText, { color: buttonText }]}>ADD TO BAG</Text>
+                    <Text style={[styles.addToCartText, { color: buttonText }]}>AÑADIR AL CARRITO</Text>
                     <Ionicons name="bag-handle-outline" size={20} color={buttonText} style={{ marginLeft: 10 }} />
                 </TouchableOpacity>
             )}

@@ -1,4 +1,5 @@
 import { Product } from '../../domain/entities/product';
+import { SearchResult } from '../../domain/entities/search-result';
 import { CartItemInput, EcommerceRepository } from '../../domain/repositories/ecommerce.repository';
 import { Either, left, right } from '../../shared/utils/either';
 import { Provider } from '../providers/provider.factory';
@@ -7,10 +8,10 @@ import { ProductFetchInput } from '../providers/vtex/vtex.types/vtex.products.ty
 export class EcommerceRepositoryImpl implements EcommerceRepository {
   constructor(private provider: Provider) {}
 
-  async getProducts(input: ProductFetchInput | any): Promise<Either<Error, Product[]>> {
+  async getProducts(input: ProductFetchInput | any): Promise<Either<Error, SearchResult>> {
     try {
-      const products = await this.provider.fetchProducts(input);
-      return right(products); 
+      const searchResult = await this.provider.fetchProducts(input);
+      return right(searchResult); 
     } catch (error: any) {
       return left(new Error(`Failed to fetch products: ${error.message}`));
     }
@@ -19,7 +20,7 @@ export class EcommerceRepositoryImpl implements EcommerceRepository {
  
   async getProductDetail(slug: string, prefetchKey?: string, isPrefetchAction?: boolean): Promise<Either<Error, Product>> {
     try {
-        const product = await this.provider.fetchProduct(slug, prefetchKey, isPrefetchAction);
+        const product = await this.provider.fetchProduct(slug);
         if (!product) {
             return left(new Error("Product not found."));
         }
@@ -62,6 +63,15 @@ export class EcommerceRepositoryImpl implements EcommerceRepository {
       return right(updatedCart);
     } catch (error: any) {
       return left(new Error(`Failed to sync cart: ${error.message}`));
+    }
+  }
+
+  async getCart(): Promise<Either<Error, any>> {
+    try {
+      const cart = await this.provider.getCart();
+      return right(cart);
+    } catch (error: any) {
+        return left(new Error(`Failed to get cart: ${error.message}`));
     }
   }
 
